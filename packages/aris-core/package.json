@@ -1,0 +1,10 @@
+{
+	"name": "@aris/core",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "index.ts",
+	"types": "index.ts",
+	"scripts": {
+		"test": "bun test ."
+	}
+}

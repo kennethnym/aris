@@ -1,0 +1,23 @@
+{
+	"name": "aris",
+	"private": true,
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
+	"type": "module",
+	"scripts": {
+		"lint": "oxlint .",
+		"lint:fix": "oxlint --fix .",
+		"format": "oxfmt --write .",
+		"format:check": "oxfmt --check ."
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"oxfmt": "^0.24.0",
+		"oxlint": "^1.39.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}
