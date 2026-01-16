@@ -6,10 +6,25 @@ To install dependencies:
 bun install
 ```
 
-To run:
+## Packages
+
+### @aris/data-source-tfl
+
+TfL (Transport for London) data source for tube, overground, and Elizabeth line alerts.
+
+#### Testing
 
 ```bash
-bun run index.ts
+cd packages/aris-data-source-tfl
+bun run test
 ```
 
-This project was created using `bun init` in bun v1.3.6. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+#### Fixtures
+
+Tests use fixture data from real TfL API responses stored in `fixtures/tfl-responses.json`.
+
+To refresh fixtures:
+
+```bash
+bun run fetch-fixtures
+```
