@@ -49,3 +49,10 @@ WeatherKit requires Apple Developer credentials. Generate a private key in the A
 ## Validation
 
 API responses are validated using [arktype](https://arktype.io) schemas.
+
+## Generating Test Fixtures
+
+To regenerate fixture data from the real API:
+
+1. Create a `.env` file with your credentials (see `.env.example`)
+2. Run `bun run scripts/generate-fixtures.ts`
