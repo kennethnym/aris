@@ -23,7 +23,7 @@ async function fetchFixtures() {
 	}
 
 	const path = new URL("../fixtures/tfl-responses.json", import.meta.url)
-	await Bun.write(path, JSON.stringify(fixtures, null, "\t"))
+	await Bun.write(path, JSON.stringify(fixtures))
 
 	console.log(`\nFixtures saved to fixtures/tfl-responses.json`)
 	console.log(`  Line statuses: ${(lineStatuses as unknown[]).length} lines`)
