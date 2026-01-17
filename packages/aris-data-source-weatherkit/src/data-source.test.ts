@@ -1,10 +1,11 @@
 import type { Context } from "@aris/core"
 
-import { describe, expect, test } from "bun:test"
+import { describe, expect, mock, test } from "bun:test"
 
 import fixture from "../fixtures/san-francisco.json"
 import { WeatherKitDataSource, Units } from "./data-source"
 import { WeatherFeedItemType } from "./feed-items"
+import * as weatherkit from "./weatherkit"
 
 const mockCredentials = {
 	privateKey: "mock",
@@ -99,5 +100,139 @@ describe("unit conversion", () => {
 	test("Units enum has metric and imperial", () => {
 		expect(Units.metric).toBe("metric")
 		expect(Units.imperial).toBe("imperial")
+	})
+})
+
+describe("query() with mocked API", () => {
+	const mockFetchWeather = mock(() =>
+		Promise.resolve(fixture.response as weatherkit.WeatherKitResponse),
+	)
+
+	test("transforms API response into feed items", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+
+		const items = await dataSource.query(context)
+
+		expect(items.length).toBeGreaterThan(0)
+		expect(items.some((i) => i.type === WeatherFeedItemType.current)).toBe(true)
+		expect(items.some((i) => i.type === WeatherFeedItemType.hourly)).toBe(true)
+		expect(items.some((i) => i.type === WeatherFeedItemType.daily)).toBe(true)
+	})
+
+	test("applies hourly and daily limits", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({
+			credentials: mockCredentials,
+			hourlyLimit: 3,
+			dailyLimit: 2,
+		})
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+
+		const items = await dataSource.query(context)
+
+		const hourlyItems = items.filter((i) => i.type === WeatherFeedItemType.hourly)
+		const dailyItems = items.filter((i) => i.type === WeatherFeedItemType.daily)
+
+		expect(hourlyItems.length).toBe(3)
+		expect(dailyItems.length).toBe(2)
+	})
+
+	test("sets timestamp from context.time", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const queryTime = new Date("2026-01-17T12:00:00Z")
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+		context.time = queryTime
+
+		const items = await dataSource.query(context)
+
+		for (const item of items) {
+			expect(item.timestamp).toEqual(queryTime)
+		}
+	})
+
+	test("converts temperatures to imperial", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource, Units } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+
+		const metricItems = await dataSource.query(context, { units: Units.metric })
+		const imperialItems = await dataSource.query(context, { units: Units.imperial })
+
+		const metricCurrent = metricItems.find((i) => i.type === WeatherFeedItemType.current)
+		const imperialCurrent = imperialItems.find((i) => i.type === WeatherFeedItemType.current)
+
+		expect(metricCurrent).toBeDefined()
+		expect(imperialCurrent).toBeDefined()
+
+		// Imperial temp should be higher (F > C for typical weather temps)
+		const metricTemp = (metricCurrent!.data as { temperature: number }).temperature
+		const imperialTemp = (imperialCurrent!.data as { temperature: number }).temperature
+
+		// Verify conversion: F = C * 9/5 + 32
+		const expectedImperial = (metricTemp * 9) / 5 + 32
+		expect(imperialTemp).toBeCloseTo(expectedImperial, 2)
+	})
+
+	test("assigns priority based on weather conditions", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+
+		const items = await dataSource.query(context)
+
+		for (const item of items) {
+			expect(item.priority).toBeGreaterThanOrEqual(0)
+			expect(item.priority).toBeLessThanOrEqual(1)
+		}
+
+		const currentItem = items.find((i) => i.type === WeatherFeedItemType.current)
+		expect(currentItem).toBeDefined()
+		// Base priority for current is 0.5, may be adjusted for conditions
+		expect(currentItem!.priority).toBeGreaterThanOrEqual(0.5)
+	})
+
+	test("generates unique IDs for each item", async () => {
+		mock.module("./weatherkit", () => ({
+			...weatherkit,
+			fetchWeather: mockFetchWeather,
+		}))
+
+		const { WeatherKitDataSource } = await import("./data-source")
+		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
+
+		const items = await dataSource.query(context)
+		const ids = items.map((i) => i.id)
+		const uniqueIds = new Set(ids)
+
+		expect(uniqueIds.size).toBe(ids.length)
 	})
 })
