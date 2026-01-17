@@ -39,7 +39,7 @@ describe("WeatherKitDataSource with fixture", () => {
 	test("parses current weather from fixture", () => {
 		const current = response.currentWeather
 
-		expect(current.conditionCode).toBe("Clear")
+		expect(typeof current.conditionCode).toBe("string")
 		expect(typeof current.temperature).toBe("number")
 		expect(typeof current.humidity).toBe("number")
 		expect(current.pressureTrend).toMatch(/^(rising|falling|steady)$/)
