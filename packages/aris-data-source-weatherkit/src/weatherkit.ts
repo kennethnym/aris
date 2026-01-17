@@ -50,7 +50,8 @@ export class DefaultWeatherKitClient implements WeatherKitClient {
 		})
 
 		if (!response.ok) {
-			throw new Error(`WeatherKit API error: ${response.status} ${response.statusText}`)
+			const body = await response.text()
+			throw new Error(`WeatherKit API error: ${response.status} ${response.statusText}: ${body}`)
 		}
 
 		const json = await response.json()
