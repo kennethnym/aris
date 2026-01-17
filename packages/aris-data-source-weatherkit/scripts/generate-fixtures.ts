@@ -1,4 +1,4 @@
-import { fetchWeather } from "../src/weatherkit"
+import { DefaultWeatherKitClient } from "../src/weatherkit"
 
 function loadEnv(): Record<string, string> {
 	const content = require("fs").readFileSync(".env", "utf-8")
@@ -26,12 +26,12 @@ function loadEnv(): Record<string, string> {
 
 const env = loadEnv()
 
-const credentials = {
+const client = new DefaultWeatherKitClient({
 	privateKey: env.WEATHERKIT_PRIVATE_KEY!,
 	keyId: env.WEATHERKIT_KEY_ID!,
 	teamId: env.WEATHERKIT_TEAM_ID!,
 	serviceId: env.WEATHERKIT_SERVICE_ID!,
-}
+})
 
 const locations = {
 	sanFrancisco: { lat: 37.7749, lng: -122.4194 },
@@ -40,10 +40,10 @@ const locations = {
 async function main() {
 	console.log("Fetching weather data for San Francisco...")
 
-	const response = await fetchWeather(
-		{ credentials },
-		{ lat: locations.sanFrancisco.lat, lng: locations.sanFrancisco.lng },
-	)
+	const response = await client.fetch({
+		lat: locations.sanFrancisco.lat,
+		lng: locations.sanFrancisco.lng,
+	})
 
 	const fixture = {
 		generatedAt: new Date().toISOString(),

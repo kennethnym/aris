@@ -3,42 +3,6 @@
 
 import { type } from "arktype"
 
-export async function fetchWeather(
-	options: WeatherKitClientOptions,
-	query: WeatherKitQueryOptions,
-): Promise<WeatherKitResponse> {
-	const token = await generateJwt(options.credentials)
-
-	const dataSets = ["currentWeather", "forecastHourly", "forecastDaily", "weatherAlerts"].join(",")
-
-	const url = new URL(
-		`${WEATHERKIT_API_BASE}/weather/${query.language ?? "en"}/${query.lat}/${query.lng}`,
-	)
-	url.searchParams.set("dataSets", dataSets)
-	if (query.timezone) {
-		url.searchParams.set("timezone", query.timezone)
-	}
-
-	const response = await fetch(url.toString(), {
-		headers: {
-			Authorization: `Bearer ${token}`,
-		},
-	})
-
-	if (!response.ok) {
-		throw new Error(`WeatherKit API error: ${response.status} ${response.statusText}`)
-	}
-
-	const json = await response.json()
-	const result = weatherKitResponseSchema(json)
-
-	if (result instanceof type.errors) {
-		throw new Error(`WeatherKit API response validation failed: ${result.summary}`)
-	}
-
-	return result
-}
-
 export interface WeatherKitCredentials {
 	privateKey: string
 	keyId: string
@@ -46,15 +10,58 @@ export interface WeatherKitCredentials {
 	serviceId: string
 }
 
-export interface WeatherKitClientOptions {
-	credentials: WeatherKitCredentials
-}
-
 export interface WeatherKitQueryOptions {
 	lat: number
 	lng: number
 	language?: string
 	timezone?: string
+}
+
+export interface WeatherKitClient {
+	fetch(query: WeatherKitQueryOptions): Promise<WeatherKitResponse>
+}
+
+export class DefaultWeatherKitClient implements WeatherKitClient {
+	private readonly credentials: WeatherKitCredentials
+
+	constructor(credentials: WeatherKitCredentials) {
+		this.credentials = credentials
+	}
+
+	async fetch(query: WeatherKitQueryOptions): Promise<WeatherKitResponse> {
+		const token = await generateJwt(this.credentials)
+
+		const dataSets = ["currentWeather", "forecastHourly", "forecastDaily", "weatherAlerts"].join(
+			",",
+		)
+
+		const url = new URL(
+			`${WEATHERKIT_API_BASE}/weather/${query.language ?? "en"}/${query.lat}/${query.lng}`,
+		)
+		url.searchParams.set("dataSets", dataSets)
+		if (query.timezone) {
+			url.searchParams.set("timezone", query.timezone)
+		}
+
+		const response = await fetch(url.toString(), {
+			headers: {
+				Authorization: `Bearer ${token}`,
+			},
+		})
+
+		if (!response.ok) {
+			throw new Error(`WeatherKit API error: ${response.status} ${response.statusText}`)
+		}
+
+		const json = await response.json()
+		const result = weatherKitResponseSchema(json)
+
+		if (result instanceof type.errors) {
+			throw new Error(`WeatherKit API response validation failed: ${result.summary}`)
+		}
+
+		return result
+	}
 }
 
 export const Severity = {

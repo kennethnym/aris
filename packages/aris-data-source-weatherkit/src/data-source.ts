@@ -10,12 +10,13 @@ import {
 } from "./feed-items"
 import {
 	ConditionCode,
+	DefaultWeatherKitClient,
 	Severity,
-	fetchWeather,
 	type CurrentWeather,
 	type DailyForecast,
 	type HourlyForecast,
 	type WeatherAlert,
+	type WeatherKitClient,
 	type WeatherKitCredentials,
 } from "./weatherkit"
 
@@ -27,7 +28,8 @@ export const Units = {
 export type Units = (typeof Units)[keyof typeof Units]
 
 export interface WeatherKitDataSourceOptions {
-	credentials: WeatherKitCredentials
+	credentials?: WeatherKitCredentials
+	client?: WeatherKitClient
 	hourlyLimit?: number
 	dailyLimit?: number
 }
@@ -41,12 +43,15 @@ export class WeatherKitDataSource implements DataSource<WeatherFeedItem, Weather
 	private readonly DEFAULT_DAILY_LIMIT = 7
 
 	readonly type = WeatherFeedItemType.current
-	private readonly credentials: WeatherKitCredentials
+	private readonly client: WeatherKitClient
 	private readonly hourlyLimit: number
 	private readonly dailyLimit: number
 
 	constructor(options: WeatherKitDataSourceOptions) {
-		this.credentials = options.credentials
+		if (!options.client && !options.credentials) {
+			throw new Error("Either client or credentials must be provided")
+		}
+		this.client = options.client ?? new DefaultWeatherKitClient(options.credentials!)
 		this.hourlyLimit = options.hourlyLimit ?? this.DEFAULT_HOURLY_LIMIT
 		this.dailyLimit = options.dailyLimit ?? this.DEFAULT_DAILY_LIMIT
 	}
@@ -59,13 +64,10 @@ export class WeatherKitDataSource implements DataSource<WeatherFeedItem, Weather
 		const units = config.units ?? Units.metric
 		const timestamp = context.time
 
-		const response = await fetchWeather(
-			{ credentials: this.credentials },
-			{
-				lat: context.location.lat,
-				lng: context.location.lng,
-			},
-		)
+		const response = await this.client.fetch({
+			lat: context.location.lat,
+			lng: context.location.lng,
+		})
 
 		const items: WeatherFeedItem[] = []
 

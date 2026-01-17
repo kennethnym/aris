@@ -1,11 +1,12 @@
 import type { Context } from "@aris/core"
 
-import { describe, expect, mock, test } from "bun:test"
+import { describe, expect, test } from "bun:test"
+
+import type { WeatherKitClient, WeatherKitResponse } from "./weatherkit"
 
 import fixture from "../fixtures/san-francisco.json"
 import { WeatherKitDataSource, Units } from "./data-source"
 import { WeatherFeedItemType } from "./feed-items"
-import * as weatherkit from "./weatherkit"
 
 const mockCredentials = {
 	privateKey: "mock",
@@ -13,6 +14,10 @@ const mockCredentials = {
 	teamId: "mock",
 	serviceId: "mock",
 }
+
+const createMockClient = (response: WeatherKitResponse): WeatherKitClient => ({
+	fetch: async () => response,
+})
 
 const createMockContext = (location?: { lat: number; lng: number }): Context => ({
 	time: new Date("2026-01-17T00:00:00Z"),
@@ -31,6 +36,12 @@ describe("WeatherKitDataSource", () => {
 		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
 
 		expect(dataSource.type).toBe(WeatherFeedItemType.current)
+	})
+
+	test("throws error if neither client nor credentials provided", () => {
+		expect(() => new WeatherKitDataSource({})).toThrow(
+			"Either client or credentials must be provided",
+		)
 	})
 })
 
@@ -103,19 +114,11 @@ describe("unit conversion", () => {
 	})
 })
 
-describe("query() with mocked API", () => {
-	const mockFetchWeather = mock(() =>
-		Promise.resolve(fixture.response as weatherkit.WeatherKitResponse),
-	)
+describe("query() with mocked client", () => {
+	const mockClient = createMockClient(fixture.response as WeatherKitResponse)
 
 	test("transforms API response into feed items", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource } = await import("./data-source")
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 		const items = await dataSource.query(context)
@@ -127,14 +130,8 @@ describe("query() with mocked API", () => {
 	})
 
 	test("applies hourly and daily limits", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource } = await import("./data-source")
 		const dataSource = new WeatherKitDataSource({
-			credentials: mockCredentials,
+			client: mockClient,
 			hourlyLimit: 3,
 			dailyLimit: 2,
 		})
@@ -150,13 +147,7 @@ describe("query() with mocked API", () => {
 	})
 
 	test("sets timestamp from context.time", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource } = await import("./data-source")
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const queryTime = new Date("2026-01-17T12:00:00Z")
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 		context.time = queryTime
@@ -169,13 +160,7 @@ describe("query() with mocked API", () => {
 	})
 
 	test("converts temperatures to imperial", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource, Units } = await import("./data-source")
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 		const metricItems = await dataSource.query(context, { units: Units.metric })
@@ -187,7 +172,6 @@ describe("query() with mocked API", () => {
 		expect(metricCurrent).toBeDefined()
 		expect(imperialCurrent).toBeDefined()
 
-		// Imperial temp should be higher (F > C for typical weather temps)
 		const metricTemp = (metricCurrent!.data as { temperature: number }).temperature
 		const imperialTemp = (imperialCurrent!.data as { temperature: number }).temperature
 
@@ -197,13 +181,7 @@ describe("query() with mocked API", () => {
 	})
 
 	test("assigns priority based on weather conditions", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource } = await import("./data-source")
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 		const items = await dataSource.query(context)
@@ -220,13 +198,7 @@ describe("query() with mocked API", () => {
 	})
 
 	test("generates unique IDs for each item", async () => {
-		mock.module("./weatherkit", () => ({
-			...weatherkit,
-			fetchWeather: mockFetchWeather,
-		}))
-
-		const { WeatherKitDataSource } = await import("./data-source")
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 		const items = await dataSource.query(context)

@@ -26,10 +26,13 @@ export {
 	Certainty,
 	PrecipitationType,
 	ConditionCode,
+	DefaultWeatherKitClient,
 	type Severity as SeverityType,
 	type Urgency as UrgencyType,
 	type Certainty as CertaintyType,
 	type PrecipitationType as PrecipitationTypeType,
 	type ConditionCode as ConditionCodeType,
 	type WeatherKitCredentials,
+	type WeatherKitClient,
+	type WeatherKitQueryOptions,
 } from "./weatherkit"
