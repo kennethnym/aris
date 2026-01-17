@@ -17,6 +17,14 @@
       "name": "@aris/core",
       "version": "0.0.0",
     },
+    "packages/aris-data-source-tfl": {
+      "name": "@aris/data-source-tfl",
+      "version": "0.0.0",
+      "dependencies": {
+        "@aris/core": "workspace:*",
+        "arktype": "^2.1.0",
+      },
+    },
     "packages/aris-data-source-weatherkit": {
       "name": "@aris/data-source-weatherkit",
       "version": "0.0.0",
@@ -28,6 +36,8 @@
   },
   "packages": {
     "@aris/core": ["@aris/core@workspace:packages/aris-core"],
+
+    "@aris/data-source-tfl": ["@aris/data-source-tfl@workspace:packages/aris-data-source-tfl"],
 
     "@aris/data-source-weatherkit": ["@aris/data-source-weatherkit@workspace:packages/aris-data-source-weatherkit"],
 
