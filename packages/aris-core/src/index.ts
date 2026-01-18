@@ -12,6 +12,7 @@ export type { DataSource } from "./data-source"
 export type { ContextProvider } from "./context-provider"
 
 // Context Bridge
+export type { ProviderError, RefreshResult } from "./context-bridge"
 export { ContextBridge } from "./context-bridge"
 
 // Reconciler

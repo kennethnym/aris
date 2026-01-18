@@ -5,6 +5,15 @@ interface ContextUpdatable {
 	pushContextUpdate(update: Partial<Context>): void
 }
 
+export interface ProviderError {
+	key: string
+	error: Error
+}
+
+export interface RefreshResult {
+	errors: ProviderError[]
+}
+
 /**
  * Bridges context providers to a feed controller.
  *
@@ -55,10 +64,11 @@ export class ContextBridge {
 	/**
 	 * Gathers current values from all providers and pushes to controller.
 	 * Use for manual refresh when user pulls to refresh.
-	 * Errors from individual providers are silently ignored.
+	 * Returns errors from providers that failed to fetch.
 	 */
-	async refresh(): Promise<void> {
+	async refresh(): Promise<RefreshResult> {
 		const updates: Partial<Context> = {}
+		const errors: ProviderError[] = []
 
 		const entries = Array.from(this.providers.entries())
 		const results = await Promise.allSettled(
@@ -69,10 +79,17 @@ export class ContextBridge {
 			const result = results[i]
 			if (result?.status === "fulfilled") {
 				updates[key] = result.value
+			} else if (result?.status === "rejected") {
+				errors.push({
+					key,
+					error: result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
+				})
 			}
 		})
 
 		this.controller.pushContextUpdate(updates)
+
+		return { errors }
 	}
 
 	/**
