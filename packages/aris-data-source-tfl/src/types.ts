@@ -1,4 +1,5 @@
 import type { FeedItem } from "@aris/core"
+
 import type { TflLineId } from "./tfl-api.ts"
 
 export type { TflLineId } from "./tfl-api.ts"

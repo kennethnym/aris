@@ -1,11 +1,12 @@
+import type { Context } from "@aris/core"
+
 import { describe, expect, test } from "bun:test"
 
-import type { Context } from "@aris/core"
-import { TflDataSource } from "./data-source.ts"
 import type { ITflApi, TflLineStatus } from "./tfl-api.ts"
 import type { StationLocation, TflLineId } from "./types.ts"
 
 import fixtures from "../fixtures/tfl-responses.json"
+import { TflDataSource } from "./data-source.ts"
 
 // Mock API that returns fixture data
 class FixtureTflApi implements ITflApi {
@@ -109,9 +110,10 @@ describe("TfL Feed Items (using fixture data)", () => {
 			expect(typeof item.data.lineName).toBe("string")
 			expect(["minor-delays", "major-delays", "closure"]).toContain(item.data.severity)
 			expect(typeof item.data.description).toBe("string")
-			expect(item.data.closestStationDistance === null || typeof item.data.closestStationDistance === "number").toBe(
-				true,
-			)
+			expect(
+				item.data.closestStationDistance === null ||
+					typeof item.data.closestStationDistance === "number",
+			).toBe(true)
 		}
 	})
 

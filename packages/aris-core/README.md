@@ -107,7 +107,7 @@ class LocationProvider implements ContextProvider<Location> {
 		return () => navigator.geolocation.clearWatch(watchId)
 	}
 
-	async getCurrentValue(): Promise<Location> {
+	async fetchCurrentValue(): Promise<Location> {
 		const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
 			navigator.geolocation.getCurrentPosition(resolve, reject)
 		})

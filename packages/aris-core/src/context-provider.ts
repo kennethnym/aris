@@ -16,7 +16,7 @@
  *     return () => navigator.geolocation.clearWatch(watchId)
  *   }
  *
- *   async getCurrentValue(): Promise<Location> {
+ *   async fetchCurrentValue(): Promise<Location> {
  *     const pos = await getCurrentPosition()
  *     return { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }
  *   }
@@ -30,6 +30,6 @@ export interface ContextProvider<T = unknown> {
 	/** Subscribe to value changes. Returns cleanup function. */
 	onUpdate(callback: (value: T) => void): () => void
 
-	/** Get current value on-demand (used for manual refresh). */
-	getCurrentValue(): Promise<T>
+	/** Fetch current value on-demand (used for manual refresh). */
+	fetchCurrentValue(): Promise<T>
 }

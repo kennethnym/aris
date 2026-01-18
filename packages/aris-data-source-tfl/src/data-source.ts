@@ -1,5 +1,5 @@
 import type { Context, DataSource } from "@aris/core"
-import { TflApi, type ITflApi } from "./tfl-api.ts"
+
 import type {
 	StationLocation,
 	TflAlertData,
@@ -9,6 +9,8 @@ import type {
 	TflDataSourceOptions,
 	TflLineId,
 } from "./types.ts"
+
+import { TflApi, type ITflApi } from "./tfl-api.ts"
 
 const SEVERITY_PRIORITY: Record<TflAlertSeverity, number> = {
 	closure: 100,
@@ -22,7 +24,10 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 	const dLng = ((lng2 - lng1) * Math.PI) / 180
 	const a =
 		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-		Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+		Math.cos((lat1 * Math.PI) / 180) *
+			Math.cos((lat2 * Math.PI) / 180) *
+			Math.sin(dLng / 2) *
+			Math.sin(dLng / 2)
 	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 	return R * c
 }
@@ -62,13 +67,20 @@ export class TflDataSource implements DataSource<TflAlertFeedItem, TflDataSource
 	}
 
 	async query(context: Context, config: TflDataSourceConfig): Promise<TflAlertFeedItem[]> {
-		const [statuses, stations] = await Promise.all([this.api.fetchLineStatuses(config.lines), this.api.fetchStations()])
+		const [statuses, stations] = await Promise.all([
+			this.api.fetchLineStatuses(config.lines),
+			this.api.fetchStations(),
+		])
 
 		const items: TflAlertFeedItem[] = statuses.map((status) => {
-			const closestStationDistance =
-				context.location ?
-					findClosestStationDistance(status.lineId, stations, context.location.lat, context.location.lng)
-				:	null
+			const closestStationDistance = context.location
+				? findClosestStationDistance(
+						status.lineId,
+						stations,
+						context.location.lat,
+						context.location.lng,
+					)
+				: null
 
 			const data: TflAlertData = {
 				line: status.lineId,

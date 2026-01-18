@@ -1,4 +1,5 @@
 import { type } from "arktype"
+
 import type { StationLocation, TflAlertSeverity } from "./types.ts"
 
 const TFL_API_BASE = "https://api.tfl.gov.uk"

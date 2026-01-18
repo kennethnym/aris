@@ -55,15 +55,21 @@ export class ContextBridge {
 	/**
 	 * Gathers current values from all providers and pushes to controller.
 	 * Use for manual refresh when user pulls to refresh.
+	 * Errors from individual providers are silently ignored.
 	 */
 	async refresh(): Promise<void> {
 		const updates: Partial<Context> = {}
 
 		const entries = Array.from(this.providers.entries())
-		const values = await Promise.all(entries.map(([_, provider]) => provider.getCurrentValue()))
+		const results = await Promise.allSettled(
+			entries.map(([_, provider]) => provider.fetchCurrentValue()),
+		)
 
 		entries.forEach(([key], i) => {
-			updates[key] = values[i]
+			const result = results[i]
+			if (result?.status === "fulfilled") {
+				updates[key] = result.value
+			}
 		})
 
 		this.controller.pushContextUpdate(updates)

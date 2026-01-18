@@ -111,7 +111,7 @@ function createLocationProvider(): SimulatedLocationProvider {
 				callback = null
 			}
 		},
-		async getCurrentValue() {
+		async fetchCurrentValue() {
 			return currentLocation
 		},
 		simulateUpdate(location: Location) {
