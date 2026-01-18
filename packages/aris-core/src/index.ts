@@ -5,7 +5,10 @@ export { contextKey, contextValue } from "./context"
 // Feed
 export type { FeedItem } from "./feed"
 
-// Data Source
+// Feed Source
+export type { FeedSource } from "./feed-source"
+
+// Data Source (deprecated - use FeedSource)
 export type { DataSource } from "./data-source"
 
 // Context Provider

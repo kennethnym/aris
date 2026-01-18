@@ -6,43 +6,61 @@ Core orchestration layer for ARIS feed reconciliation.
 
 ```mermaid
 flowchart TB
-    subgraph Providers["Context Providers"]
-        LP[Location Provider]
-        MP[Music Provider]
+    subgraph Sources["Feed Sources (Graph)"]
+        LS[Location Source]
+        WS[Weather Source]
+        TS[TFL Source]
+        CS[Calendar Source]
     end
 
-    subgraph Bridge["ContextBridge"]
-        direction TB
-        B1[Manages providers]
-        B2[Forwards updates]
-        B3[Gathers on refresh]
-    end
+    LS --> WS
+    LS --> TS
 
     subgraph Controller["FeedController"]
         direction TB
         C1[Holds context]
-        C2[Debounces updates]
-        C3[Reconciles sources]
+        C2[Manages source graph]
+        C3[Reconciles on update]
         C4[Notifies subscribers]
     end
 
-    subgraph Sources["Data Sources"]
-        WS[Weather]
-        TS[TFL]
-        CS[Calendar]
-    end
-
-    LP & MP --> Bridge
-    Bridge -->|pushContextUpdate| Controller
-    Controller -->|query| Sources
-    Controller -->|subscribe| Sub[Subscribers]
+    Sources --> Controller
+    Controller --> Sub[Subscribers]
 ```
 
-## Usage
+## Concepts
 
-### Define Context Keys
+### FeedSource
 
-Each package defines its own typed context keys:
+A unified interface for sources that provide context and/or feed items. Sources form a dependency graph.
+
+```ts
+interface FeedSource<TItem extends FeedItem = FeedItem> {
+	readonly id: string
+	readonly dependencies?: readonly string[]
+
+	// Context production (optional)
+	onContextUpdate?(
+		callback: (update: Partial<Context>) => void,
+		getContext: () => Context,
+	): () => void
+	fetchContext?(context: Context): Promise<Partial<Context>>
+
+	// Feed item production (optional)
+	onItemsUpdate?(callback: (items: TItem[]) => void, getContext: () => Context): () => void
+	fetchItems?(context: Context): Promise<TItem[]>
+}
+```
+
+A source may:
+
+- Provide context for other sources (implement `fetchContext`/`onContextUpdate`)
+- Produce feed items (implement `fetchItems`/`onItemsUpdate`)
+- Both
+
+### Context Keys
+
+Each package exports typed context keys for type-safe access:
 
 ```ts
 import { contextKey, type ContextKey } from "@aris/core"
@@ -50,140 +68,96 @@ import { contextKey, type ContextKey } from "@aris/core"
 interface Location {
 	lat: number
 	lng: number
-	accuracy: number
 }
 
 export const LocationKey: ContextKey<Location> = contextKey("location")
 ```
 
-### Create Data Sources
+## Usage
 
-Data sources query external APIs and return feed items:
-
-```ts
-import { contextValue, type Context, type DataSource, type FeedItem } from "@aris/core"
-
-type WeatherItem = FeedItem<"weather", { temp: number; condition: string }>
-
-class WeatherDataSource implements DataSource<WeatherItem> {
-	readonly type = "weather"
-
-	async query(context: Context): Promise<WeatherItem[]> {
-		const location = contextValue(context, LocationKey)
-		if (!location) return []
-
-		const data = await fetchWeather(location.lat, location.lng)
-		return [
-			{
-				id: `weather-${Date.now()}`,
-				type: this.type,
-				priority: 0.5,
-				timestamp: context.time,
-				data: { temp: data.temp, condition: data.condition },
-			},
-		]
-	}
-}
-```
-
-### Create Context Providers
-
-Context providers push updates reactively and provide current values on demand:
+### Define a Context-Only Source
 
 ```ts
-import type { ContextProvider } from "@aris/core"
+import type { FeedSource } from "@aris/core"
 
-class LocationProvider implements ContextProvider<Location> {
-	readonly key = LocationKey
+const locationSource: FeedSource = {
+	id: "location",
 
-	onUpdate(callback: (value: Location) => void): () => void {
+	onContextUpdate(callback, _getContext) {
 		const watchId = navigator.geolocation.watchPosition((pos) => {
 			callback({
-				lat: pos.coords.latitude,
-				lng: pos.coords.longitude,
-				accuracy: pos.coords.accuracy,
+				[LocationKey]: { lat: pos.coords.latitude, lng: pos.coords.longitude },
 			})
 		})
 		return () => navigator.geolocation.clearWatch(watchId)
-	}
+	},
 
-	async fetchCurrentValue(): Promise<Location> {
-		const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-			navigator.geolocation.getCurrentPosition(resolve, reject)
-		})
+	async fetchContext() {
+		const pos = await getCurrentPosition()
 		return {
-			lat: pos.coords.latitude,
-			lng: pos.coords.longitude,
-			accuracy: pos.coords.accuracy,
+			[LocationKey]: { lat: pos.coords.latitude, lng: pos.coords.longitude },
 		}
-	}
+	},
 }
 ```
 
-### Wire It Together
+### Define a Source with Dependencies
 
 ```ts
-import { ContextBridge, FeedController } from "@aris/core"
+import type { FeedSource, FeedItem } from "@aris/core"
+import { contextValue } from "@aris/core"
 
-// Create controller with data sources
-const controller = new FeedController({ debounceMs: 100 })
-	.addDataSource(weatherSource)
-	.addDataSource(tflSource)
+type WeatherItem = FeedItem<"weather", { temp: number; condition: string }>
 
-// Bridge context providers to controller
-const bridge = new ContextBridge(controller)
-	.addProvider(locationProvider)
-	.addProvider(musicProvider)
+const weatherSource: FeedSource<WeatherItem> = {
+	id: "weather",
+	dependencies: ["location"],
 
-// Subscribe to feed updates
-controller.subscribe((result) => {
-	console.log("Feed items:", result.items)
-	console.log("Errors:", result.errors)
-})
+	async fetchContext(context) {
+		const location = contextValue(context, LocationKey)
+		if (!location) return {}
 
-// Manual refresh (gathers from all providers)
-await bridge.refresh()
+		const weather = await fetchWeatherApi(location)
+		return { [WeatherKey]: weather }
+	},
 
-// Direct context update (bypasses providers)
-controller.pushContextUpdate({
-	[CurrentTrackKey]: { trackId: "123", title: "Song", artist: "Artist", startedAt: new Date() },
-})
+	async fetchItems(context) {
+		const weather = contextValue(context, WeatherKey)
+		if (!weather) return []
 
-// Cleanup
-bridge.stop()
-controller.stop()
-```
-
-### Per-User Pattern
-
-Each user gets their own controller instance:
-
-```ts
-const connections = new Map<string, { controller: FeedController; bridge: ContextBridge }>()
-
-function onUserConnect(userId: string, ws: WebSocket) {
-	const controller = new FeedController({ debounceMs: 100 })
-		.addDataSource(weatherSource)
-		.addDataSource(tflSource)
-
-	const bridge = new ContextBridge(controller).addProvider(createLocationProvider())
-
-	controller.subscribe((result) => {
-		ws.send(JSON.stringify({ type: "feed-update", items: result.items }))
-	})
-
-	connections.set(userId, { controller, bridge })
-}
-
-function onUserDisconnect(userId: string) {
-	const conn = connections.get(userId)
-	if (conn) {
-		conn.bridge.stop()
-		conn.controller.stop()
-		connections.delete(userId)
-	}
+		return [
+			{
+				id: `weather-${Date.now()}`,
+				type: "weather",
+				priority: 0.5,
+				timestamp: new Date(),
+				data: { temp: weather.temp, condition: weather.condition },
+			},
+		]
+	},
 }
 ```
+
+### Graph Behavior
+
+The source graph:
+
+1. Validates all dependencies exist
+2. Detects circular dependencies
+3. Topologically sorts sources
+
+On refresh:
+
+1. `fetchContext` runs in dependency order
+2. `fetchItems` runs on all sources
+3. Combined items returned to subscribers
+
+On reactive update:
+
+1. Source pushes context update via `onContextUpdate` callback
+2. Dependent sources re-run `fetchContext`
+3. Affected sources re-run `fetchItems`
+4. Subscribers notified
 
 ## API
 
@@ -196,24 +170,17 @@ function onUserDisconnect(userId: string) {
 | `contextValue(context, key)` | Type-safe context value accessor        |
 | `Context`                    | Time + arbitrary key-value bag          |
 
-### Data Sources
+### Feed
 
-| Export                       | Description                       |
-| ---------------------------- | --------------------------------- |
-| `DataSource<TItem, TConfig>` | Interface for feed item producers |
-| `FeedItem<TType, TData>`     | Single item in the feed           |
+| Export                   | Description              |
+| ------------------------ | ------------------------ |
+| `FeedSource<TItem>`      | Unified source interface |
+| `FeedItem<TType, TData>` | Single item in the feed  |
 
-### Orchestration
+### Legacy (deprecated)
 
-| Export               | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `FeedController`     | Holds context, debounces updates, reconciles sources |
-| `ContextProvider<T>` | Reactive + on-demand context value provider          |
-| `ContextBridge`      | Bridges providers to controller                      |
-
-### Reconciler
-
-| Export               | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `Reconciler`         | Low-level: queries sources, sorts by priority |
-| `ReconcileResult<T>` | Items + errors from reconciliation            |
+| Export                       | Description              |
+| ---------------------------- | ------------------------ |
+| `DataSource<TItem, TConfig>` | Use `FeedSource` instead |
+| `ContextProvider<T>`         | Use `FeedSource` instead |
+| `ContextBridge`              | Use source graph instead |
