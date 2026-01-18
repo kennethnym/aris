@@ -39,3 +39,4 @@ Use Bun exclusively. Do not use npm or yarn.
 
 - Branch: `feat/<task>`, `fix/<task>`, `ci/<task>`, etc.
 - Commits: conventional commit format, title <= 50 chars
+- Signing: If `GPG_PRIVATE_KEY_PASSPHRASE` env var is available, use it to sign commits with `git commit -S`
