@@ -8,20 +8,35 @@ export type { FeedItem } from "./feed"
 // Feed Source
 export type { FeedSource } from "./feed-source"
 
+// Feed Engine
+export type { FeedResult, FeedSubscriber, SourceError } from "./feed-engine"
+export { FeedEngine } from "./feed-engine"
+
+// =============================================================================
+// DEPRECATED - Use FeedSource + FeedEngine instead
+// =============================================================================
+
 // Data Source (deprecated - use FeedSource)
 export type { DataSource } from "./data-source"
 
-// Context Provider
+// Context Provider (deprecated - use FeedSource)
 export type { ContextProvider } from "./context-provider"
 
-// Context Bridge
+// Context Bridge (deprecated - use FeedEngine)
 export type { ProviderError, RefreshResult } from "./context-bridge"
 export { ContextBridge } from "./context-bridge"
 
-// Reconciler
-export type { ReconcileResult, ReconcilerConfig, SourceError } from "./reconciler"
+// Reconciler (deprecated - use FeedEngine)
+export type {
+	ReconcileResult,
+	ReconcilerConfig,
+	SourceError as ReconcilerSourceError,
+} from "./reconciler"
 export { Reconciler } from "./reconciler"
 
-// Feed Controller
-export type { FeedControllerConfig, FeedSubscriber } from "./feed-controller"
+// Feed Controller (deprecated - use FeedEngine)
+export type {
+	FeedControllerConfig,
+	FeedSubscriber as FeedControllerSubscriber,
+} from "./feed-controller"
 export { FeedController } from "./feed-controller"
