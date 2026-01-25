@@ -8,14 +8,14 @@ bun install
 
 ## Packages
 
-### @aris/data-source-tfl
+### @aris/source-tfl
 
-TfL (Transport for London) data source for tube, overground, and Elizabeth line alerts.
+TfL (Transport for London) feed source for tube, overground, and Elizabeth line alerts.
 
 #### Testing
 
 ```bash
-cd packages/aris-data-source-tfl
+cd packages/aris-source-tfl
 bun run test
 ```
 

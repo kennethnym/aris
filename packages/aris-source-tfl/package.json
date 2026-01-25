@@ -1,5 +1,5 @@
 {
-	"name": "@aris/data-source-tfl",
+	"name": "@aris/source-tfl",
 	"version": "0.0.0",
 	"type": "module",
 	"main": "src/index.ts",
@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@aris/core": "workspace:*",
+		"@aris/source-location": "workspace:*",
 		"arktype": "^2.1.0"
 	}
 }
