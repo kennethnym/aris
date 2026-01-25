@@ -14,10 +14,10 @@
 		"@aris/source-weatherkit": "workspace:*",
 		"@hono/trpc-server": "^0.3",
 		"@trpc/server": "^11",
+		"arktype": "^2.1.29",
 		"better-auth": "^1",
 		"hono": "^4",
-		"pg": "^8",
-		"zod": "^3"
+		"pg": "^8"
 	},
 	"devDependencies": {
 		"@types/pg": "^8"
