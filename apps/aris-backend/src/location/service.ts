@@ -1,11 +1,13 @@
 import { LocationSource, type Location } from "@aris/source-location"
 
+import type { FeedSourceProvider } from "../feed/service.ts"
+
 import { UserNotFoundError } from "../lib/error.ts"
 
 /**
  * Manages LocationSource instances per user.
  */
-export class LocationService {
+export class LocationService implements FeedSourceProvider {
 	private sources = new Map<string, LocationSource>()
 
 	/**
