@@ -1,6 +1,6 @@
 import { type } from "arktype"
 
-import type { StationLocation, TflAlertSeverity } from "./types.ts"
+import type { StationLocation, TflAlertSeverity, TflLineStatus } from "./types.ts"
 
 const TFL_API_BASE = "https://api.tfl.gov.uk"
 
@@ -50,19 +50,7 @@ const SEVERITY_MAP: Record<number, TflAlertSeverity | null> = {
 	20: null, // Service Closed
 }
 
-export interface TflLineStatus {
-	lineId: TflLineId
-	lineName: string
-	severity: TflAlertSeverity
-	description: string
-}
-
-export interface ITflApi {
-	fetchLineStatuses(lines?: TflLineId[]): Promise<TflLineStatus[]>
-	fetchStations(): Promise<StationLocation[]>
-}
-
-export class TflApi implements ITflApi {
+export class TflApi {
 	private apiKey: string
 	private stationsCache: StationLocation[] | null = null
 
