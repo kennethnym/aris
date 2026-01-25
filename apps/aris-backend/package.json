@@ -12,9 +12,12 @@
 		"@aris/core": "workspace:*",
 		"@aris/source-location": "workspace:*",
 		"@aris/source-weatherkit": "workspace:*",
+		"@hono/trpc-server": "^0.3",
+		"@trpc/server": "^11",
 		"better-auth": "^1",
 		"hono": "^4",
-		"pg": "^8"
+		"pg": "^8",
+		"zod": "^3"
 	},
 	"devDependencies": {
 		"@types/pg": "^8"
