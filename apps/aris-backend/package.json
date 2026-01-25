@@ -1,0 +1,19 @@
+{
+	"name": "@aris/backend",
+	"version": "0.0.0",
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"dev": "bun run --watch src/index.ts",
+		"start": "bun run src/index.ts",
+		"test": "bun test src/"
+	},
+	"dependencies": {
+		"@aris/core": "workspace:*",
+		"@aris/source-location": "workspace:*",
+		"@aris/source-weatherkit": "workspace:*",
+		"better-auth": "^1",
+		"hono": "^4",
+		"postgres": "^3"
+	}
+}
