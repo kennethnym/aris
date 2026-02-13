@@ -1,8 +1,10 @@
 import { initTRPC, TRPCError } from "@trpc/server"
 
-import { createLocationRouter } from "../location/router.ts"
 import type { LocationService } from "../location/service.ts"
+import type { WeatherService } from "../weather/service.ts"
 import type { Context } from "./context.ts"
+
+import { createLocationRouter } from "../location/router.ts"
 
 interface AuthedContext {
 	user: NonNullable<Context["user"]>
@@ -34,6 +36,7 @@ export type TRPC = ReturnType<typeof createTRPC>
 
 export interface TRPCRouterDeps {
 	locationService: LocationService
+	weatherService: WeatherService
 }
 
 export function createTRPCRouter({ locationService }: TRPCRouterDeps) {

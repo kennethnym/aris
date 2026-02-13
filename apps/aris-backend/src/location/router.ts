@@ -1,9 +1,10 @@
 import { TRPCError } from "@trpc/server"
 import { type } from "arktype"
 
-import { UserNotFoundError } from "../lib/error.ts"
 import type { TRPC } from "../trpc/router.ts"
 import type { LocationService } from "./service.ts"
+
+import { UserNotFoundError } from "../lib/error.ts"
 
 const locationInput = type({
 	lat: "number",
@@ -12,7 +13,10 @@ const locationInput = type({
 	timestamp: "Date",
 })
 
-export function createLocationRouter(t: TRPC, { locationService }: { locationService: LocationService }) {
+export function createLocationRouter(
+	t: TRPC,
+	{ locationService }: { locationService: LocationService },
+) {
 	return t.router({
 		update: t.procedure.input(locationInput).mutation(({ input, ctx }) => {
 			try {
