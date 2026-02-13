@@ -11,6 +11,7 @@
 	"dependencies": {
 		"@aris/core": "workspace:*",
 		"@aris/source-location": "workspace:*",
+		"@aris/source-tfl": "workspace:*",
 		"@aris/source-weatherkit": "workspace:*",
 		"@hono/trpc-server": "^0.3",
 		"@trpc/server": "^11",

@@ -42,18 +42,46 @@ const SEVERITY_PRIORITY: Record<TflAlertSeverity, number> = {
  * ```
  */
 export class TflSource implements FeedSource<TflAlertFeedItem> {
+	static readonly DEFAULT_LINES_OF_INTEREST: readonly TflLineId[] = [
+		"bakerloo",
+		"central",
+		"circle",
+		"district",
+		"hammersmith-city",
+		"jubilee",
+		"metropolitan",
+		"northern",
+		"piccadilly",
+		"victoria",
+		"waterloo-city",
+		"lioness",
+		"mildmay",
+		"windrush",
+		"weaver",
+		"suffragette",
+		"liberty",
+		"elizabeth",
+	]
+
 	readonly id = "tfl"
 	readonly dependencies = ["location"]
 
 	private readonly client: ITflApi
-	private readonly lines?: TflLineId[]
+	private lines: TflLineId[]
 
 	constructor(options: TflSourceOptions) {
 		if (!options.client && !options.apiKey) {
 			throw new Error("Either client or apiKey must be provided")
 		}
 		this.client = options.client ?? new TflApi(options.apiKey!)
-		this.lines = options.lines
+		this.lines = options.lines ?? [...TflSource.DEFAULT_LINES_OF_INTEREST]
+	}
+
+	/**
+	 * Update the set of monitored lines. Takes effect on the next fetchItems call.
+	 */
+	setLinesOfInterest(lines: TflLineId[]): void {
+		this.lines = lines
 	}
 
 	async fetchItems(context: Context): Promise<TflAlertFeedItem[]> {
