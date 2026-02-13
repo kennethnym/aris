@@ -112,6 +112,49 @@ describe("TflSource", () => {
 		})
 	})
 
+	describe("setLinesOfInterest", () => {
+		const lineFilteringApi: ITflApi = {
+			async fetchLineStatuses(lines?: TflLineId[]): Promise<TflLineStatus[]> {
+				const all: TflLineStatus[] = [
+					{
+						lineId: "northern",
+						lineName: "Northern",
+						severity: "minor-delays",
+						description: "Delays",
+					},
+					{ lineId: "central", lineName: "Central", severity: "closure", description: "Closed" },
+				]
+				return lines ? all.filter((s) => lines.includes(s.lineId)) : all
+			},
+			async fetchStations(): Promise<StationLocation[]> {
+				return []
+			},
+		}
+
+		test("changes which lines are fetched", async () => {
+			const source = new TflSource({ client: lineFilteringApi })
+			const before = await source.fetchItems(createContext())
+			expect(before.length).toBe(2)
+
+			source.setLinesOfInterest(["northern"])
+			const after = await source.fetchItems(createContext())
+
+			expect(after.length).toBe(1)
+			expect(after[0]!.data.line).toBe("northern")
+		})
+
+		test("DEFAULT_LINES_OF_INTEREST restores all lines", async () => {
+			const source = new TflSource({ client: lineFilteringApi, lines: ["northern"] })
+			const filtered = await source.fetchItems(createContext())
+			expect(filtered.length).toBe(1)
+
+			source.setLinesOfInterest([...TflSource.DEFAULT_LINES_OF_INTEREST])
+			const all = await source.fetchItems(createContext())
+
+			expect(all.length).toBe(2)
+		})
+	})
+
 	describe("fetchItems", () => {
 		test("returns feed items array", async () => {
 			const source = new TflSource({ client: api })
