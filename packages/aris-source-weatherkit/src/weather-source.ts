@@ -111,10 +111,10 @@ export class WeatherSource implements FeedSource<WeatherFeedItem> {
 		this.units = options.units ?? Units.metric
 	}
 
-	async fetchContext(context: Context): Promise<Partial<Context>> {
+	async fetchContext(context: Context): Promise<Partial<Context> | null> {
 		const location = contextValue(context, LocationKey)
 		if (!location) {
-			return {}
+			return null
 		}
 
 		const response = await this.client.fetch({
@@ -123,7 +123,7 @@ export class WeatherSource implements FeedSource<WeatherFeedItem> {
 		})
 
 		if (!response.currentWeather) {
-			return {}
+			return null
 		}
 
 		const weather: Weather = {

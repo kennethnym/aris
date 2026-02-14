@@ -89,16 +89,16 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		// Run fetchContext in topological order
 		for (const source of graph.sorted) {
-			if (source.fetchContext) {
-				try {
-					const update = await source.fetchContext(context)
+			try {
+				const update = await source.fetchContext(context)
+				if (update) {
 					context = { ...context, ...update }
-				} catch (err) {
-					errors.push({
-						sourceId: source.id,
-						error: err instanceof Error ? err : new Error(String(err)),
-					})
 				}
+			} catch (err) {
+				errors.push({
+					sourceId: source.id,
+					error: err instanceof Error ? err : new Error(String(err)),
+				})
 			}
 		}
 
@@ -208,10 +208,12 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 		// Re-run fetchContext for dependents in order
 		for (const id of toRefresh) {
 			const source = graph.sources.get(id)
-			if (source?.fetchContext) {
+			if (source) {
 				try {
 					const update = await source.fetchContext(this.context)
-					this.context = { ...this.context, ...update }
+					if (update) {
+						this.context = { ...this.context, ...update }
+					}
 				} catch {
 					// Errors during reactive updates are logged but don't stop propagation
 				}

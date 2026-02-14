@@ -27,11 +27,11 @@ describe("LocationSource", () => {
 			expect(items).toEqual([])
 		})
 
-		test("fetchContext returns empty when no location", async () => {
+		test("fetchContext returns null when no location", async () => {
 			const source = new LocationSource()
 
 			const context = await source.fetchContext()
-			expect(context).toEqual({})
+			expect(context).toBeNull()
 		})
 
 		test("fetchContext returns location when available", async () => {

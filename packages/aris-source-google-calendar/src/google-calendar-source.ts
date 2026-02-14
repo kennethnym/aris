@@ -75,14 +75,14 @@ export class GoogleCalendarSource implements FeedSource<CalendarFeedItem> {
 		this.lookaheadHours = options.lookaheadHours ?? DEFAULT_LOOKAHEAD_HOURS
 	}
 
-	async fetchContext(context: Context): Promise<Partial<Context>> {
+	async fetchContext(context: Context): Promise<Partial<Context> | null> {
 		const events = await this.fetchAllEvents(context.time)
 
 		const now = context.time.getTime()
 		const nextTimedEvent = events.find((e) => !e.isAllDay && e.startTime.getTime() > now)
 
 		if (!nextTimedEvent) {
-			return {}
+			return null
 		}
 
 		const minutesUntilStart = (nextTimedEvent.startTime.getTime() - now) / 60_000

@@ -197,13 +197,13 @@ describe("GoogleCalendarSource", () => {
 	})
 
 	describe("fetchContext", () => {
-		test("returns empty when no events", async () => {
+		test("returns null when no events", async () => {
 			const source = new GoogleCalendarSource({ client: createMockClient({ primary: [] }) })
 			const result = await source.fetchContext(createContext())
-			expect(result).toEqual({})
+			expect(result).toBeNull()
 		})
 
-		test("returns empty when only all-day events", async () => {
+		test("returns null when only all-day events", async () => {
 			const allDayOnly: ApiCalendarEvent[] = [
 				{
 					id: "evt-allday",
@@ -218,14 +218,15 @@ describe("GoogleCalendarSource", () => {
 				client: createMockClient({ primary: allDayOnly }),
 			})
 			const result = await source.fetchContext(createContext())
-			expect(result).toEqual({})
+			expect(result).toBeNull()
 		})
 
 		test("returns next upcoming timed event (not ongoing)", async () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
 			const result = await source.fetchContext(createContext())
 
-			const nextEvent = contextValue(result as Context, NextEventKey)
+			expect(result).not.toBeNull()
+			const nextEvent = contextValue(result! as Context, NextEventKey)
 			expect(nextEvent).toBeDefined()
 			// evt-soon starts at 10:10, which is the nearest future timed event
 			expect(nextEvent!.title).toBe("1:1 with Manager")
@@ -250,7 +251,8 @@ describe("GoogleCalendarSource", () => {
 			})
 			const result = await source.fetchContext(createContext())
 
-			const nextEvent = contextValue(result as Context, NextEventKey)
+			expect(result).not.toBeNull()
+			const nextEvent = contextValue(result! as Context, NextEventKey)
 			expect(nextEvent).toBeDefined()
 			expect(nextEvent!.location).toBe("123 Main St")
 		})
@@ -270,7 +272,7 @@ describe("GoogleCalendarSource", () => {
 				client: createMockClient({ primary: events }),
 			})
 			const result = await source.fetchContext(createContext())
-			expect(result).toEqual({})
+			expect(result).toBeNull()
 		})
 	})
 

@@ -77,6 +77,10 @@ export class TflSource implements FeedSource<TflAlertFeedItem> {
 		this.lines = options.lines ?? [...TflSource.DEFAULT_LINES_OF_INTEREST]
 	}
 
+	async fetchContext(): Promise<null> {
+		return null
+	}
+
 	/**
 	 * Update the set of monitored lines. Takes effect on the next fetchItems call.
 	 */

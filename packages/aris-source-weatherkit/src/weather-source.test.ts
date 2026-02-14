@@ -52,11 +52,11 @@ describe("WeatherSource", () => {
 	describe("fetchContext", () => {
 		const mockClient = createMockClient(fixture.response as WeatherKitResponse)
 
-		test("returns empty when no location", async () => {
+		test("returns null when no location", async () => {
 			const source = new WeatherSource({ client: mockClient })
 			const result = await source.fetchContext(createMockContext())
 
-			expect(result).toEqual({})
+			expect(result).toBeNull()
 		})
 
 		test("returns simplified weather context", async () => {
@@ -64,7 +64,8 @@ describe("WeatherSource", () => {
 			const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 			const result = await source.fetchContext(context)
-			const weather = contextValue(result, WeatherKey)
+			expect(result).not.toBeNull()
+			const weather = contextValue(result! as Context, WeatherKey)
 
 			expect(weather).toBeDefined()
 			expect(typeof weather!.temperature).toBe("number")
@@ -81,7 +82,8 @@ describe("WeatherSource", () => {
 			const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 			const result = await source.fetchContext(context)
-			const weather = contextValue(result, WeatherKey)
+			expect(result).not.toBeNull()
+			const weather = contextValue(result! as Context, WeatherKey)
 
 			// Fixture has temperature around 10°C, imperial should be around 50°F
 			expect(weather!.temperature).toBeGreaterThan(40)

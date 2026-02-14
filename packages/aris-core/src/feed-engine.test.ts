@@ -74,7 +74,7 @@ function createWeatherSource(
 
 		async fetchContext(context) {
 			const location = contextValue(context, LocationKey)
-			if (!location) return {}
+			if (!location) return null
 
 			const weather = await fetchWeather(location)
 			return { [WeatherKey]: weather }
@@ -104,6 +104,10 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 	return {
 		id: "alert",
 		dependencies: ["weather"],
+
+		async fetchContext() {
+			return null
+		},
 
 		async fetchItems(context) {
 			const weather = contextValue(context, WeatherKey)
@@ -169,6 +173,9 @@ describe("FeedEngine", () => {
 			const orphan: FeedSource = {
 				id: "orphan",
 				dependencies: ["nonexistent"],
+				async fetchContext() {
+					return null
+				},
 			}
 
 			engine.register(orphan)
@@ -180,8 +187,20 @@ describe("FeedEngine", () => {
 
 		test("throws on circular dependency", () => {
 			const engine = new FeedEngine()
-			const a: FeedSource = { id: "a", dependencies: ["b"] }
-			const b: FeedSource = { id: "b", dependencies: ["a"] }
+			const a: FeedSource = {
+				id: "a",
+				dependencies: ["b"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const b: FeedSource = {
+				id: "b",
+				dependencies: ["a"],
+				async fetchContext() {
+					return null
+				},
+			}
 
 			engine.register(a).register(b)
 
@@ -190,9 +209,27 @@ describe("FeedEngine", () => {
 
 		test("throws on longer cycles", () => {
 			const engine = new FeedEngine()
-			const a: FeedSource = { id: "a", dependencies: ["c"] }
-			const b: FeedSource = { id: "b", dependencies: ["a"] }
-			const c: FeedSource = { id: "c", dependencies: ["b"] }
+			const a: FeedSource = {
+				id: "a",
+				dependencies: ["c"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const b: FeedSource = {
+				id: "b",
+				dependencies: ["a"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const c: FeedSource = {
+				id: "c",
+				dependencies: ["b"],
+				async fetchContext() {
+					return null
+				},
+			}
 
 			engine.register(a).register(b).register(c)
 
@@ -282,7 +319,7 @@ describe("FeedEngine", () => {
 			const location: FeedSource = {
 				id: "location",
 				async fetchContext() {
-					return {} // No location available
+					return null // No location available
 				},
 			}
 
@@ -316,6 +353,9 @@ describe("FeedEngine", () => {
 		test("captures errors from fetchItems", async () => {
 			const failing: FeedSource = {
 				id: "failing",
+				async fetchContext() {
+					return null
+				},
 				async fetchItems() {
 					throw new Error("Items fetch failed")
 				},
@@ -340,6 +380,9 @@ describe("FeedEngine", () => {
 
 			const working: FeedSource = {
 				id: "working",
+				async fetchContext() {
+					return null
+				},
 				async fetchItems() {
 					return [
 						{

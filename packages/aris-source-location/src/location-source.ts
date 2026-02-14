@@ -73,11 +73,11 @@ export class LocationSource implements FeedSource {
 		}
 	}
 
-	async fetchContext(): Promise<Partial<Context>> {
+	async fetchContext(): Promise<Partial<Context> | null> {
 		if (this.lastLocation) {
 			return { [LocationKey]: this.lastLocation }
 		}
-		return {}
+		return null
 	}
 
 	async fetchItems(): Promise<[]> {

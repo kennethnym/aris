@@ -73,7 +73,7 @@ function createWeatherSource(
 
 		async fetchContext(context) {
 			const location = contextValue(context, LocationKey)
-			if (!location) return {}
+			if (!location) return null
 
 			const weather = await fetchWeather(location)
 			return { [WeatherKey]: weather }
@@ -103,6 +103,10 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 	return {
 		id: "alert",
 		dependencies: ["weather"],
+
+		async fetchContext() {
+			return null
+		},
 
 		async fetchItems(context) {
 			const weather = contextValue(context, WeatherKey)
@@ -194,8 +198,8 @@ async function refreshGraph(graph: SourceGraph): Promise<{ context: Context; ite
 
 	// Run fetchContext in topological order
 	for (const source of graph.sorted) {
-		if (source.fetchContext) {
-			const update = await source.fetchContext(context)
+		const update = await source.fetchContext(context)
+		if (update) {
 			context = { ...context, ...update }
 		}
 	}
@@ -245,8 +249,14 @@ describe("FeedSource", () => {
 
 			expect(source.id).toBe("alert")
 			expect(source.dependencies).toEqual(["weather"])
-			expect(source.fetchContext).toBeUndefined()
+			expect(source.fetchContext).toBeDefined()
 			expect(source.fetchItems).toBeDefined()
+		})
+
+		test("source without context returns null from fetchContext", async () => {
+			const source = createAlertSource()
+			const result = await source.fetchContext({ time: new Date() })
+			expect(result).toBeNull()
 		})
 	})
 
@@ -255,6 +265,9 @@ describe("FeedSource", () => {
 			const orphan: FeedSource = {
 				id: "orphan",
 				dependencies: ["nonexistent"],
+				async fetchContext() {
+					return null
+				},
 			}
 
 			expect(() => buildGraph([orphan])).toThrow(
@@ -263,16 +276,46 @@ describe("FeedSource", () => {
 		})
 
 		test("detects circular dependencies", () => {
-			const a: FeedSource = { id: "a", dependencies: ["b"] }
-			const b: FeedSource = { id: "b", dependencies: ["a"] }
+			const a: FeedSource = {
+				id: "a",
+				dependencies: ["b"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const b: FeedSource = {
+				id: "b",
+				dependencies: ["a"],
+				async fetchContext() {
+					return null
+				},
+			}
 
 			expect(() => buildGraph([a, b])).toThrow("Circular dependency detected: a → b → a")
 		})
 
 		test("detects longer cycles", () => {
-			const a: FeedSource = { id: "a", dependencies: ["c"] }
-			const b: FeedSource = { id: "b", dependencies: ["a"] }
-			const c: FeedSource = { id: "c", dependencies: ["b"] }
+			const a: FeedSource = {
+				id: "a",
+				dependencies: ["c"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const b: FeedSource = {
+				id: "b",
+				dependencies: ["a"],
+				async fetchContext() {
+					return null
+				},
+			}
+			const c: FeedSource = {
+				id: "c",
+				dependencies: ["b"],
+				async fetchContext() {
+					return null
+				},
+			}
 
 			expect(() => buildGraph([a, b, c])).toThrow("Circular dependency detected")
 		})
@@ -376,12 +419,12 @@ describe("FeedSource", () => {
 		})
 
 		test("source without location context returns empty items", async () => {
-			// Location source exists but hasn't been updated (returns default 0,0)
+			// Location source exists but hasn't been updated
 			const location: FeedSource = {
 				id: "location",
 				async fetchContext() {
 					// Simulate no location available
-					return {}
+					return null
 				},
 			}
 
