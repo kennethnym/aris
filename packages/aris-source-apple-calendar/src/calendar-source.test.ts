@@ -48,6 +48,7 @@ class MockCredentialProvider implements CalendarCredentialProvider {
 
 class MockDAVClient implements CalendarDAVClient {
 	credentials: Record<string, unknown> = {}
+	fetchCalendarsCallCount = 0
 	private calendars: CalendarDAVCalendar[]
 	private objectsByCalendarUrl: Record<string, CalendarDAVObject[]>
 
@@ -62,6 +63,7 @@ class MockDAVClient implements CalendarDAVClient {
 	async login(): Promise<void> {}
 
 	async fetchCalendars(): Promise<CalendarDAVCalendar[]> {
+		this.fetchCalendarsCallCount++
 		return this.calendars
 	}
 
@@ -240,6 +242,40 @@ describe("CalendarSource", () => {
 		expect(exception).toBeDefined()
 		expect(exception!.data.recurrenceId).not.toBeNull()
 		expect(exception!.id).toContain("-")
+	})
+
+	test("caches events within the same refresh cycle", async () => {
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
+		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
+		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
+			davClient: client,
+		})
+
+		const context = createContext(new Date("2026-01-15T12:00:00Z"))
+
+		await source.fetchContext(context)
+		await source.fetchItems(context)
+
+		// Same context.time reference — fetchEvents should only hit the client once
+		expect(client.fetchCalendarsCallCount).toBe(1)
+	})
+
+	test("refetches events for a different context time", async () => {
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
+		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
+		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
+			davClient: client,
+		})
+
+		await source.fetchItems(createContext(new Date("2026-01-15T12:00:00Z")))
+		await source.fetchItems(createContext(new Date("2026-01-15T13:00:00Z")))
+
+		// Different context.time references — should fetch twice
+		expect(client.fetchCalendarsCallCount).toBe(2)
 	})
 })
 

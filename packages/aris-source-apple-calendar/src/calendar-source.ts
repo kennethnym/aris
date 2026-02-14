@@ -45,6 +45,7 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 	private readonly injectedClient: CalendarDAVClient | null
 	private davClient: CalendarDAVClient | null = null
 	private lastAccessToken: string | null = null
+	private cachedEvents: { time: Date; events: CalendarEventData[] } | null = null
 
 	constructor(
 		credentialProvider: CalendarCredentialProvider,
@@ -94,6 +95,10 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 	}
 
 	private async fetchEvents(context: Context): Promise<CalendarEventData[]> {
+		if (this.cachedEvents && this.cachedEvents.time === context.time) {
+			return this.cachedEvents.events
+		}
+
 		const credentials = await this.credentialProvider.fetchCredentials(this.userId)
 		if (!credentials) {
 			return []
@@ -134,6 +139,7 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 			}
 		}
 
+		this.cachedEvents = { time: context.time, events: allEvents }
 		return allEvents
 	}
 
