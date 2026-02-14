@@ -1,0 +1,72 @@
+{
+	"kind": "calendar#events",
+	"summary": "primary",
+	"items": [
+		{
+			"id": "evt-ongoing",
+			"status": "confirmed",
+			"htmlLink": "https://calendar.google.com/event?eid=evt-ongoing",
+			"summary": "Team Standup",
+			"description": "Daily standup meeting",
+			"location": "Room 3A",
+			"start": {
+				"dateTime": "2026-01-20T09:30:00Z"
+			},
+			"end": {
+				"dateTime": "2026-01-20T10:15:00Z"
+			}
+		},
+		{
+			"id": "evt-soon",
+			"status": "confirmed",
+			"htmlLink": "https://calendar.google.com/event?eid=evt-soon",
+			"summary": "1:1 with Manager",
+			"start": {
+				"dateTime": "2026-01-20T10:10:00Z"
+			},
+			"end": {
+				"dateTime": "2026-01-20T10:40:00Z"
+			}
+		},
+		{
+			"id": "evt-later",
+			"status": "confirmed",
+			"htmlLink": "https://calendar.google.com/event?eid=evt-later",
+			"summary": "Design Review",
+			"description": "Review new dashboard designs",
+			"location": "Conference Room B",
+			"start": {
+				"dateTime": "2026-01-20T14:00:00Z"
+			},
+			"end": {
+				"dateTime": "2026-01-20T15:00:00Z"
+			}
+		},
+		{
+			"id": "evt-tentative",
+			"status": "tentative",
+			"htmlLink": "https://calendar.google.com/event?eid=evt-tentative",
+			"summary": "Lunch with Alex",
+			"location": "Cafe Nero",
+			"start": {
+				"dateTime": "2026-01-20T12:00:00Z"
+			},
+			"end": {
+				"dateTime": "2026-01-20T13:00:00Z"
+			}
+		},
+		{
+			"id": "evt-allday",
+			"status": "confirmed",
+			"htmlLink": "https://calendar.google.com/event?eid=evt-allday",
+			"summary": "Company Holiday",
+			"description": "Office closed",
+			"start": {
+				"date": "2026-01-20"
+			},
+			"end": {
+				"date": "2026-01-21"
+			}
+		}
+	]
+}
