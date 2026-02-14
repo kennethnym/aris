@@ -98,7 +98,7 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 
 		const { start, end } = computeTimeRange(context.time, this.lookAheadDays)
 
-		const results = await Promise.all(
+		const results = await Promise.allSettled(
 			calendars.map(async (calendar) => {
 				const objects = await client.fetchCalendarObjects({
 					calendar,
@@ -115,7 +115,9 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 		)
 
 		const allEvents: CalendarEventData[] = []
-		for (const { objects, calendarName } of results) {
+		for (const result of results) {
+			if (result.status !== "fulfilled") continue
+			const { objects, calendarName } = result.value
 			for (const obj of objects) {
 				if (typeof obj.data !== "string") continue
 
