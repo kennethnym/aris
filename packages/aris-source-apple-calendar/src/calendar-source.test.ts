@@ -49,11 +49,11 @@ class MockCredentialProvider implements CalendarCredentialProvider {
 class MockDAVClient implements CalendarDAVClient {
 	credentials: Record<string, unknown> = {}
 	private calendars: CalendarDAVCalendar[]
-	private objectsByCalendarUrl: Map<string, CalendarDAVObject[]>
+	private objectsByCalendarUrl: Record<string, CalendarDAVObject[]>
 
 	constructor(
 		calendars: CalendarDAVCalendar[],
-		objectsByCalendarUrl: Map<string, CalendarDAVObject[]>,
+		objectsByCalendarUrl: Record<string, CalendarDAVObject[]>,
 	) {
 		this.calendars = calendars
 		this.objectsByCalendarUrl = objectsByCalendarUrl
@@ -69,7 +69,7 @@ class MockDAVClient implements CalendarDAVClient {
 		calendar: CalendarDAVCalendar
 		timeRange: { start: string; end: string }
 	}): Promise<CalendarDAVObject[]> {
-		return this.objectsByCalendarUrl.get(params.calendar.url) ?? []
+		return this.objectsByCalendarUrl[params.calendar.url] ?? []
 	}
 }
 
@@ -86,7 +86,7 @@ describe("CalendarSource", () => {
 	})
 
 	test("returns empty array when no calendars exist", async () => {
-		const client = new MockDAVClient([], new Map())
+		const client = new MockDAVClient([], {})
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
 		})
@@ -95,9 +95,9 @@ describe("CalendarSource", () => {
 	})
 
 	test("returns feed items from a single calendar", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -116,13 +116,12 @@ describe("CalendarSource", () => {
 	})
 
 	test("returns feed items from multiple calendars", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }]],
-			[
-				"/cal/personal",
-				[{ url: "/cal/personal/event2.ics", data: loadFixture("all-day-event.ics") }],
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+			"/cal/personal": [
+				{ url: "/cal/personal/event2.ics", data: loadFixture("all-day-event.ics") },
 			],
-		])
+		}
 		const client = new MockDAVClient(
 			[
 				{ url: "/cal/work", displayName: "Work" },
@@ -150,16 +149,13 @@ describe("CalendarSource", () => {
 	})
 
 	test("skips objects with non-string data", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			[
-				"/cal/work",
-				[
-					{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
-					{ url: "/cal/work/bad.ics", data: 12345 },
-					{ url: "/cal/work/empty.ics" },
-				],
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [
+				{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
+				{ url: "/cal/work/bad.ics", data: 12345 },
+				{ url: "/cal/work/empty.ics" },
 			],
-		])
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -171,9 +167,9 @@ describe("CalendarSource", () => {
 	})
 
 	test("uses context time as feed item timestamp", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -185,15 +181,12 @@ describe("CalendarSource", () => {
 	})
 
 	test("assigns priority based on event proximity", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			[
-				"/cal/work",
-				[
-					{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
-					{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") },
-				],
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [
+				{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
+				{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") },
 			],
-		])
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -210,9 +203,9 @@ describe("CalendarSource", () => {
 	})
 
 	test("handles calendar with non-string displayName", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/weird", [{ url: "/cal/weird/event1.ics", data: loadFixture("minimal-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/weird": [{ url: "/cal/weird/event1.ics", data: loadFixture("minimal-event.ics") }],
+		}
 		const client = new MockDAVClient(
 			[{ url: "/cal/weird", displayName: { _cdata: "Weird Calendar" } }],
 			objects,
@@ -226,9 +219,9 @@ describe("CalendarSource", () => {
 	})
 
 	test("handles recurring events with exceptions", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/recurring.ics", data: loadFixture("recurring-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/recurring.ics", data: loadFixture("recurring-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -264,9 +257,9 @@ describe("CalendarSource.fetchContext", () => {
 	})
 
 	test("identifies in-progress events", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -281,9 +274,9 @@ describe("CalendarSource.fetchContext", () => {
 	})
 
 	test("identifies next upcoming event", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -299,9 +292,9 @@ describe("CalendarSource.fetchContext", () => {
 	})
 
 	test("excludes all-day events from inProgress and nextEvent", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			["/cal/work", [{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") }]],
-		])
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") }],
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
@@ -317,15 +310,12 @@ describe("CalendarSource.fetchContext", () => {
 	})
 
 	test("counts all events including all-day in todayEventCount", async () => {
-		const objects = new Map<string, CalendarDAVObject[]>([
-			[
-				"/cal/work",
-				[
-					{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
-					{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") },
-				],
+		const objects: Record<string, CalendarDAVObject[]> = {
+			"/cal/work": [
+				{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
+				{ url: "/cal/work/allday.ics", data: loadFixture("all-day-event.ics") },
 			],
-		])
+		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {
 			davClient: client,
