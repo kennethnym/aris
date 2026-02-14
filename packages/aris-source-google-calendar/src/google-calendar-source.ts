@@ -4,10 +4,29 @@ import type {
 	ApiCalendarEvent,
 	CalendarEventData,
 	GoogleCalendarClient,
-	GoogleCalendarSourceOptions,
+	GoogleOAuthProvider,
 } from "./types"
 
 import { NextEventKey, type NextEvent } from "./calendar-context"
+
+interface GoogleCalendarSourceBaseOptions {
+	calendarIds?: string[]
+	lookaheadHours?: number
+}
+
+interface GoogleCalendarSourceWithProvider extends GoogleCalendarSourceBaseOptions {
+	oauthProvider: GoogleOAuthProvider
+	client?: never
+}
+
+interface GoogleCalendarSourceWithClient extends GoogleCalendarSourceBaseOptions {
+	oauthProvider?: never
+	client: GoogleCalendarClient
+}
+
+export type GoogleCalendarSourceOptions =
+	| GoogleCalendarSourceWithProvider
+	| GoogleCalendarSourceWithClient
 import { CalendarFeedItemType, type CalendarFeedItem } from "./feed-items"
 import { DefaultGoogleCalendarClient } from "./google-calendar-api"
 

@@ -53,23 +53,3 @@ export interface GoogleCalendarClient {
 	listCalendarIds(): Promise<string[]>
 	listEvents(options: ListEventsOptions): Promise<ApiCalendarEvent[]>
 }
-
-interface GoogleCalendarSourceBaseOptions {
-	calendarIds?: string[]
-	/** Default: 24 */
-	lookaheadHours?: number
-}
-
-interface GoogleCalendarSourceWithProvider extends GoogleCalendarSourceBaseOptions {
-	oauthProvider: GoogleOAuthProvider
-	client?: never
-}
-
-interface GoogleCalendarSourceWithClient extends GoogleCalendarSourceBaseOptions {
-	oauthProvider?: never
-	client: GoogleCalendarClient
-}
-
-export type GoogleCalendarSourceOptions =
-	| GoogleCalendarSourceWithProvider
-	| GoogleCalendarSourceWithClient

@@ -7,7 +7,7 @@ export {
 	type CalendarFeedItem,
 } from "./feed-items"
 export { DefaultGoogleCalendarClient } from "./google-calendar-api"
-export { GoogleCalendarSource } from "./google-calendar-source"
+export { GoogleCalendarSource, type GoogleCalendarSourceOptions } from "./google-calendar-source"
 export {
 	EventStatus,
 	type EventStatus as EventStatusType,
@@ -15,7 +15,6 @@ export {
 	type ApiEventDateTime,
 	type CalendarEventData,
 	type GoogleCalendarClient,
-	type GoogleCalendarSourceOptions,
 	type GoogleOAuthProvider,
 	type ListEventsOptions,
 } from "./types"
