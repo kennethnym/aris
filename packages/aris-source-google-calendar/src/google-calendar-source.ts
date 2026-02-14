@@ -11,6 +11,7 @@ import { NextEventKey, type NextEvent } from "./calendar-context"
 
 interface GoogleCalendarSourceBaseOptions {
 	calendarIds?: string[]
+	/** Default: 24 */
 	lookaheadHours?: number
 }
 
