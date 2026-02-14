@@ -36,6 +36,13 @@ import type { FeedItem } from "./feed"
  *     return createWeatherFeedItems(ctx.weather)
  *   },
  * }
+ *
+ * // TFL source - no context to provide
+ * const tflSource: FeedSource<TflFeedItem> = {
+ *   id: "tfl",
+ *   fetchContext: async () => null,
+ *   fetchItems: async (ctx) => { ... },
+ * }
  * ```
  */
 export interface FeedSource<TItem extends FeedItem = FeedItem> {
@@ -58,8 +65,9 @@ export interface FeedSource<TItem extends FeedItem = FeedItem> {
 	/**
 	 * Fetch context on-demand.
 	 * Called during manual refresh or initial load.
+	 * Return null if this source cannot provide context.
 	 */
-	fetchContext?(context: Context): Promise<Partial<Context>>
+	fetchContext(context: Context): Promise<Partial<Context> | null>
 
 	/**
 	 * Subscribe to reactive feed item updates.

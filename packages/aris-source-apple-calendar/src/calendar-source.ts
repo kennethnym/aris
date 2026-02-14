@@ -58,7 +58,7 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 		this.injectedClient = options?.davClient ?? null
 	}
 
-	async fetchContext(context: Context): Promise<Partial<Context>> {
+	async fetchContext(context: Context): Promise<Partial<Context> | null> {
 		const events = await this.fetchEvents(context)
 		if (events.length === 0) {
 			return {
