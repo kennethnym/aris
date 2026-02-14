@@ -99,12 +99,3 @@ export interface CalendarDAVClient {
 	}): Promise<CalendarDAVObject[]>
 	credentials: Record<string, unknown>
 }
-
-// -- Source options --
-
-export interface CalendarSourceOptions {
-	/** Number of additional days beyond today to fetch. Default: 0 (today only). */
-	lookAheadDays?: number
-	/** Optional DAVClient instance for testing. Uses tsdav DAVClient by default. */
-	davClient?: CalendarDAVClient
-}

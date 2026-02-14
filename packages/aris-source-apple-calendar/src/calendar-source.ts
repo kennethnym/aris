@@ -8,8 +8,14 @@ import type {
 	CalendarDAVClient,
 	CalendarEventData,
 	CalendarFeedItem,
-	CalendarSourceOptions,
 } from "./types.ts"
+
+export interface CalendarSourceOptions {
+	/** Number of additional days beyond today to fetch. Default: 0 (today only). */
+	lookAheadDays?: number
+	/** Optional DAVClient instance for testing. Uses tsdav DAVClient by default. */
+	davClient?: CalendarDAVClient
+}
 
 import { CalendarKey, type CalendarContext } from "./calendar-context.ts"
 import { parseICalEvents } from "./ical-parser.ts"

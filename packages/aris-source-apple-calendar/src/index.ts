@@ -1,5 +1,5 @@
 export { CalendarKey, type CalendarContext } from "./calendar-context.ts"
-export { CalendarSource } from "./calendar-source.ts"
+export { CalendarSource, type CalendarSourceOptions } from "./calendar-source.ts"
 export {
 	CalendarEventStatus,
 	AttendeeRole,
@@ -13,5 +13,4 @@ export {
 	type CalendarAlarm,
 	type CalendarEventData,
 	type CalendarFeedItem,
-	type CalendarSourceOptions,
 } from "./types.ts"

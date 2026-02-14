@@ -52,11 +52,16 @@ function parseVEvent(
 
 function parseStatus(raw: string | null): CalendarEventStatus | null {
 	if (!raw) return null
-	const lower = raw.toLowerCase()
-	if (lower === "confirmed") return CalendarEventStatus.Confirmed
-	if (lower === "tentative") return CalendarEventStatus.Tentative
-	if (lower === "cancelled") return CalendarEventStatus.Cancelled
-	return null
+	switch (raw.toLowerCase()) {
+		case "confirmed":
+			return CalendarEventStatus.Confirmed
+		case "tentative":
+			return CalendarEventStatus.Tentative
+		case "cancelled":
+			return CalendarEventStatus.Cancelled
+		default:
+			return null
+	}
 }
 
 function parseOrganizer(
@@ -97,21 +102,32 @@ function parseAttendees(properties: unknown[]): CalendarAttendee[] {
 
 function parseAttendeeRole(raw: string | null): AttendeeRole | null {
 	if (!raw) return null
-	const upper = raw.toUpperCase()
-	if (upper === "CHAIR") return AttendeeRole.Chair
-	if (upper === "REQ-PARTICIPANT") return AttendeeRole.Required
-	if (upper === "OPT-PARTICIPANT") return AttendeeRole.Optional
-	return null
+	switch (raw.toUpperCase()) {
+		case "CHAIR":
+			return AttendeeRole.Chair
+		case "REQ-PARTICIPANT":
+			return AttendeeRole.Required
+		case "OPT-PARTICIPANT":
+			return AttendeeRole.Optional
+		default:
+			return null
+	}
 }
 
 function parseAttendeeStatus(raw: string | null): AttendeeStatus | null {
 	if (!raw) return null
-	const upper = raw.toUpperCase()
-	if (upper === "ACCEPTED") return AttendeeStatus.Accepted
-	if (upper === "DECLINED") return AttendeeStatus.Declined
-	if (upper === "TENTATIVE") return AttendeeStatus.Tentative
-	if (upper === "NEEDS-ACTION") return AttendeeStatus.NeedsAction
-	return null
+	switch (raw.toUpperCase()) {
+		case "ACCEPTED":
+			return AttendeeStatus.Accepted
+		case "DECLINED":
+			return AttendeeStatus.Declined
+		case "TENTATIVE":
+			return AttendeeStatus.Tentative
+		case "NEEDS-ACTION":
+			return AttendeeStatus.NeedsAction
+		default:
+			return null
+	}
 }
 
 function parseAlarms(vevent: InstanceType<typeof ICAL.Component>): CalendarAlarm[] {
