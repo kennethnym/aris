@@ -1,6 +1,6 @@
-import type { Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedSource } from "@aris/core"
 
-import { contextValue } from "@aris/core"
+import { UnknownActionError, contextValue } from "@aris/core"
 import { LocationKey } from "@aris/source-location"
 
 import { WeatherFeedItemType, type WeatherFeedItem } from "./feed-items"
@@ -93,8 +93,8 @@ const MODERATE_CONDITIONS = new Set<ConditionCode>([
  * ```
  */
 export class WeatherSource implements FeedSource<WeatherFeedItem> {
-	readonly id = "weather"
-	readonly dependencies = ["location"]
+	readonly id = "aris.weather"
+	readonly dependencies = ["aris.location"]
 
 	private readonly client: WeatherKitClient
 	private readonly hourlyLimit: number
@@ -109,6 +109,14 @@ export class WeatherSource implements FeedSource<WeatherFeedItem> {
 		this.hourlyLimit = options.hourlyLimit ?? DEFAULT_HOURLY_LIMIT
 		this.dailyLimit = options.dailyLimit ?? DEFAULT_DAILY_LIMIT
 		this.units = options.units ?? Units.metric
+	}
+
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {}
+	}
+
+	async executeAction(actionId: string): Promise<void> {
+		throw new UnknownActionError(actionId)
 	}
 
 	async fetchContext(context: Context): Promise<Partial<Context> | null> {

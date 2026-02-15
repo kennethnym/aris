@@ -1,61 +1,60 @@
+import type { ActionDefinition } from "./action"
 import type { Context } from "./context"
 import type { FeedItem } from "./feed"
 
 /**
- * Unified interface for sources that provide context and/or feed items.
+ * Unified interface for sources that provide context, feed items, and actions.
  *
- * Sources form a dependency graph - a source declares which other sources
+ * Sources form a dependency graph — a source declares which other sources
  * it depends on, and the graph ensures dependencies are resolved before
  * dependents run.
  *
- * A source may:
- * - Provide context for other sources (implement fetchContext/onContextUpdate)
- * - Produce feed items (implement fetchItems/onItemsUpdate)
- * - Both
+ * Source IDs use reverse domain notation. Built-in sources use `aris.<name>`,
+ * third parties use their own domain (e.g., `com.spotify`).
+ *
+ * Every method maps to a protocol operation for remote source support:
+ * - `id`, `dependencies`       → source/describe
+ * - `listActions()`            → source/listActions
+ * - `executeAction()`          → source/executeAction
+ * - `fetchContext()`           → source/fetchContext
+ * - `fetchItems()`             → source/fetchItems
+ * - `onContextUpdate()`        → source/contextUpdated (notification)
+ * - `onItemsUpdate()`          → source/itemsUpdated (notification)
  *
  * @example
  * ```ts
- * // Location source - provides context only
  * const locationSource: FeedSource = {
- *   id: "location",
- *   fetchContext: async () => {
- *     const pos = await getCurrentPosition()
- *     return { location: { lat: pos.coords.latitude, lng: pos.coords.longitude } }
- *   },
- * }
- *
- * // Weather source - depends on location, provides both context and items
- * const weatherSource: FeedSource<WeatherFeedItem> = {
- *   id: "weather",
- *   dependencies: ["location"],
- *   fetchContext: async (ctx) => {
- *     const weather = await fetchWeather(ctx.location)
- *     return { weather }
- *   },
- *   fetchItems: async (ctx) => {
- *     return createWeatherFeedItems(ctx.weather)
- *   },
- * }
- *
- * // TFL source - no context to provide
- * const tflSource: FeedSource<TflFeedItem> = {
- *   id: "tfl",
- *   fetchContext: async () => null,
- *   fetchItems: async (ctx) => { ... },
+ *   id: "aris.location",
+ *   async listActions() { return { "update-location": { id: "update-location" } } },
+ *   async executeAction(actionId) { throw new UnknownActionError(actionId) },
+ *   async fetchContext() { ... },
  * }
  * ```
  */
 export interface FeedSource<TItem extends FeedItem = FeedItem> {
-	/** Unique identifier for this source */
+	/** Unique identifier for this source in reverse-domain format */
 	readonly id: string
 
 	/** IDs of sources this source depends on */
 	readonly dependencies?: readonly string[]
 
 	/**
+	 * List actions this source supports. Empty record if none.
+	 * Maps to: source/listActions
+	 */
+	listActions(): Promise<Record<string, ActionDefinition>>
+
+	/**
+	 * Execute an action by ID. Throws on unknown action or invalid input.
+	 * Maps to: source/executeAction
+	 */
+	executeAction(actionId: string, params: unknown): Promise<unknown>
+
+	/**
 	 * Subscribe to reactive context updates.
 	 * Called when the source can push context changes proactively.
 	 * Returns cleanup function.
+	 * Maps to: source/contextUpdated (notification, source → host)
 	 */
 	onContextUpdate?(
 		callback: (update: Partial<Context>) => void,
@@ -66,6 +65,7 @@ export interface FeedSource<TItem extends FeedItem = FeedItem> {
 	 * Fetch context on-demand.
 	 * Called during manual refresh or initial load.
 	 * Return null if this source cannot provide context.
+	 * Maps to: source/fetchContext
 	 */
 	fetchContext(context: Context): Promise<Partial<Context> | null>
 
@@ -73,12 +73,14 @@ export interface FeedSource<TItem extends FeedItem = FeedItem> {
 	 * Subscribe to reactive feed item updates.
 	 * Called when the source can push item changes proactively.
 	 * Returns cleanup function.
+	 * Maps to: source/itemsUpdated (notification, source → host)
 	 */
 	onItemsUpdate?(callback: (items: TItem[]) => void, getContext: () => Context): () => void
 
 	/**
 	 * Fetch feed items on-demand.
 	 * Called during manual refresh or when dependencies update.
+	 * Maps to: source/fetchItems
 	 */
 	fetchItems?(context: Context): Promise<TItem[]>
 }

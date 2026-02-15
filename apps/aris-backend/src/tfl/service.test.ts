@@ -64,7 +64,7 @@ describe("TflService", () => {
 		const source = service.feedSourceForUser("user-1")
 
 		expect(source).toBeDefined()
-		expect(source.id).toBe("tfl")
+		expect(source.id).toBe("aris.tfl")
 	})
 
 	test("feedSourceForUser returns same source for same user", () => {
@@ -128,8 +128,8 @@ describe("TflService", () => {
 		service.feedSourceForUser("user-1")
 		service.feedSourceForUser("user-2")
 
-		expect(service.feedSourceForUser("user-1").id).toBe("tfl")
-		expect(service.feedSourceForUser("user-2").id).toBe("tfl")
+		expect(service.feedSourceForUser("user-1").id).toBe("aris.tfl")
+		expect(service.feedSourceForUser("user-2").id).toBe("aris.tfl")
 	})
 
 	describe("returned source fetches items", () => {

@@ -35,6 +35,9 @@
     "packages/aris-core": {
       "name": "@aris/core",
       "version": "0.0.0",
+      "dependencies": {
+        "@standard-schema/spec": "^1.1.0",
+      },
     },
     "packages/aris-data-source-weatherkit": {
       "name": "@aris/data-source-weatherkit",
@@ -66,6 +69,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@aris/core": "workspace:*",
+        "arktype": "^2.1.0",
       },
     },
     "packages/aris-source-tfl": {

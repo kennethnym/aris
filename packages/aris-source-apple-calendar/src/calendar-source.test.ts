@@ -78,7 +78,7 @@ class MockDAVClient implements CalendarDAVClient {
 describe("CalendarSource", () => {
 	test("has correct id", () => {
 		const source = new CalendarSource(new NullCredentialProvider(), "user-1")
-		expect(source.id).toBe("apple-calendar")
+		expect(source.id).toBe("aris.apple-calendar")
 	})
 
 	test("returns empty array when credentials are null", async () => {
@@ -121,7 +121,10 @@ describe("CalendarSource", () => {
 		const objects: Record<string, CalendarDAVObject[]> = {
 			"/cal/work": [{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") }],
 			"/cal/personal": [
-				{ url: "/cal/personal/event2.ics", data: loadFixture("all-day-event.ics") },
+				{
+					url: "/cal/personal/event2.ics",
+					data: loadFixture("all-day-event.ics"),
+				},
 			],
 		}
 		const client = new MockDAVClient(
@@ -206,7 +209,12 @@ describe("CalendarSource", () => {
 
 	test("handles calendar with non-string displayName", async () => {
 		const objects: Record<string, CalendarDAVObject[]> = {
-			"/cal/weird": [{ url: "/cal/weird/event1.ics", data: loadFixture("minimal-event.ics") }],
+			"/cal/weird": [
+				{
+					url: "/cal/weird/event1.ics",
+					data: loadFixture("minimal-event.ics"),
+				},
+			],
 		}
 		const client = new MockDAVClient(
 			[{ url: "/cal/weird", displayName: { _cdata: "Weird Calendar" } }],
@@ -222,7 +230,12 @@ describe("CalendarSource", () => {
 
 	test("handles recurring events with exceptions", async () => {
 		const objects: Record<string, CalendarDAVObject[]> = {
-			"/cal/work": [{ url: "/cal/work/recurring.ics", data: loadFixture("recurring-event.ics") }],
+			"/cal/work": [
+				{
+					url: "/cal/work/recurring.ics",
+					data: loadFixture("recurring-event.ics"),
+				},
+			],
 		}
 		const client = new MockDAVClient([{ url: "/cal/work", displayName: "Work" }], objects)
 		const source = new CalendarSource(new MockCredentialProvider(), "user-1", {

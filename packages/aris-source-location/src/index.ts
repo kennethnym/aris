@@ -1,6 +1,2 @@
-export {
-	LocationSource,
-	LocationKey,
-	type Location,
-	type LocationSourceOptions,
-} from "./location-source.ts"
+export { LocationSource, LocationKey } from "./location-source.ts"
+export { Location, type LocationSourceOptions } from "./types.ts"

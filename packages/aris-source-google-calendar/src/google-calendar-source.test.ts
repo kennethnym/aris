@@ -45,13 +45,15 @@ describe("GoogleCalendarSource", () => {
 	describe("constructor", () => {
 		test("has correct id", () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
-			expect(source.id).toBe("google-calendar")
+			expect(source.id).toBe("aris.google-calendar")
 		})
 	})
 
 	describe("fetchItems", () => {
 		test("returns empty array when no events", async () => {
-			const source = new GoogleCalendarSource({ client: createMockClient({ primary: [] }) })
+			const source = new GoogleCalendarSource({
+				client: createMockClient({ primary: [] }),
+			})
 			const items = await source.fetchItems(createContext())
 			expect(items).toEqual([])
 		})
@@ -198,7 +200,9 @@ describe("GoogleCalendarSource", () => {
 
 	describe("fetchContext", () => {
 		test("returns null when no events", async () => {
-			const source = new GoogleCalendarSource({ client: createMockClient({ primary: [] }) })
+			const source = new GoogleCalendarSource({
+				client: createMockClient({ primary: [] }),
+			})
 			const result = await source.fetchContext(createContext())
 			expect(result).toBeNull()
 		})

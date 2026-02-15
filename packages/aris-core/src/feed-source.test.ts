@@ -1,8 +1,18 @@
 import { describe, expect, test } from "bun:test"
 
-import type { Context, ContextKey, FeedItem, FeedSource } from "./index"
+import type { ActionDefinition, Context, ContextKey, FeedItem, FeedSource } from "./index"
 
-import { contextKey, contextValue } from "./index"
+import { UnknownActionError, contextKey, contextValue } from "./index"
+
+// No-op action methods for test sources
+const noActions = {
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {}
+	},
+	async executeAction(actionId: string): Promise<void> {
+		throw new UnknownActionError(actionId)
+	},
+}
 
 // =============================================================================
 // CONTEXT KEYS
@@ -42,6 +52,7 @@ function createLocationSource(): SimulatedLocationSource {
 
 	return {
 		id: "location",
+		...noActions,
 
 		onContextUpdate(cb) {
 			callback = cb
@@ -70,6 +81,7 @@ function createWeatherSource(
 	return {
 		id: "weather",
 		dependencies: ["location"],
+		...noActions,
 
 		async fetchContext(context) {
 			const location = contextValue(context, LocationKey)
@@ -103,6 +115,7 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 	return {
 		id: "alert",
 		dependencies: ["weather"],
+		...noActions,
 
 		async fetchContext() {
 			return null
@@ -265,6 +278,7 @@ describe("FeedSource", () => {
 			const orphan: FeedSource = {
 				id: "orphan",
 				dependencies: ["nonexistent"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -279,6 +293,7 @@ describe("FeedSource", () => {
 			const a: FeedSource = {
 				id: "a",
 				dependencies: ["b"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -286,6 +301,7 @@ describe("FeedSource", () => {
 			const b: FeedSource = {
 				id: "b",
 				dependencies: ["a"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -298,6 +314,7 @@ describe("FeedSource", () => {
 			const a: FeedSource = {
 				id: "a",
 				dependencies: ["c"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -305,6 +322,7 @@ describe("FeedSource", () => {
 			const b: FeedSource = {
 				id: "b",
 				dependencies: ["a"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -312,6 +330,7 @@ describe("FeedSource", () => {
 			const c: FeedSource = {
 				id: "c",
 				dependencies: ["b"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -350,6 +369,7 @@ describe("FeedSource", () => {
 
 			const location: FeedSource = {
 				id: "location",
+				...noActions,
 				async fetchContext() {
 					order.push("location")
 					return { [LocationKey]: { lat: 51.5, lng: -0.1 } }
@@ -359,6 +379,7 @@ describe("FeedSource", () => {
 			const weather: FeedSource = {
 				id: "weather",
 				dependencies: ["location"],
+				...noActions,
 				async fetchContext(ctx) {
 					order.push("weather")
 					const loc = contextValue(ctx, LocationKey)
@@ -382,8 +403,14 @@ describe("FeedSource", () => {
 			const graph = buildGraph([location, weather])
 			const { context } = await refreshGraph(graph)
 
-			expect(contextValue(context, LocationKey)).toEqual({ lat: 51.5, lng: -0.1 })
-			expect(contextValue(context, WeatherKey)).toEqual({ temperature: 20, condition: "sunny" })
+			expect(contextValue(context, LocationKey)).toEqual({
+				lat: 51.5,
+				lng: -0.1,
+			})
+			expect(contextValue(context, WeatherKey)).toEqual({
+				temperature: 20,
+				condition: "sunny",
+			})
 		})
 
 		test("collects items from all sources", async () => {
@@ -422,6 +449,7 @@ describe("FeedSource", () => {
 			// Location source exists but hasn't been updated
 			const location: FeedSource = {
 				id: "location",
+				...noActions,
 				async fetchContext() {
 					// Simulate no location available
 					return null

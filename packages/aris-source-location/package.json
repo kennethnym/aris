@@ -8,6 +8,7 @@
 		"test": "bun test src/"
 	},
 	"dependencies": {
-		"@aris/core": "workspace:*"
+		"@aris/core": "workspace:*",
+		"arktype": "^2.1.0"
 	}
 }

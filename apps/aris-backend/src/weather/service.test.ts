@@ -34,7 +34,7 @@ describe("WeatherService", () => {
 		const source = service.feedSourceForUser("user-1")
 
 		expect(source).toBeDefined()
-		expect(source.id).toBe("weather")
+		expect(source.id).toBe("aris.weather")
 	})
 
 	test("feedSourceForUser returns same source for same user", () => {

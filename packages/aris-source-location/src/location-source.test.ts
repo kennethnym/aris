@@ -16,7 +16,7 @@ describe("LocationSource", () => {
 	describe("FeedSource interface", () => {
 		test("has correct id", () => {
 			const source = new LocationSource()
-			expect(source.id).toBe("location")
+			expect(source.id).toBe("aris.location")
 		})
 
 		test("fetchItems always returns empty array", async () => {
@@ -145,6 +145,42 @@ describe("LocationSource", () => {
 
 			expect(listener1).toHaveBeenCalledTimes(1)
 			expect(listener2).toHaveBeenCalledTimes(1)
+		})
+	})
+
+	describe("actions", () => {
+		test("listActions returns update-location action", async () => {
+			const source = new LocationSource()
+			const actions = await source.listActions()
+
+			expect(actions["update-location"]).toBeDefined()
+			expect(actions["update-location"]!.id).toBe("update-location")
+			expect(actions["update-location"]!.input).toBeDefined()
+		})
+
+		test("executeAction update-location pushes location", async () => {
+			const source = new LocationSource()
+
+			expect(source.lastLocation).toBeNull()
+
+			const location = createLocation({ lat: 40.7128, lng: -74.006 })
+			await source.executeAction("update-location", location)
+
+			expect(source.lastLocation).toEqual(location)
+		})
+
+		test("executeAction throws on invalid input", async () => {
+			const source = new LocationSource()
+
+			await expect(
+				source.executeAction("update-location", { lat: "not a number" }),
+			).rejects.toThrow()
+		})
+
+		test("executeAction throws for unknown action", async () => {
+			const source = new LocationSource()
+
+			await expect(source.executeAction("nonexistent", {})).rejects.toThrow("Unknown action")
 		})
 	})
 })

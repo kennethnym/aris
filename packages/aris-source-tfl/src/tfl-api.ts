@@ -142,7 +142,7 @@ export class TflApi {
 
 // Schemas
 
-const lineId = type(
+export const lineId = type(
 	"'bakerloo' | 'central' | 'circle' | 'district' | 'hammersmith-city' | 'jubilee' | 'metropolitan' | 'northern' | 'piccadilly' | 'victoria' | 'waterloo-city' | 'lioness' | 'mildmay' | 'windrush' | 'weaver' | 'suffragette' | 'liberty' | 'elizabeth'",
 )
 
