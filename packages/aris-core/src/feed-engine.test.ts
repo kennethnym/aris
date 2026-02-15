@@ -1,9 +1,19 @@
 import { describe, expect, test } from "bun:test"
 
-import type { Context, ContextKey, FeedItem, FeedSource } from "./index"
+import type { ActionDefinition, Context, ContextKey, FeedItem, FeedSource } from "./index"
 
 import { FeedEngine } from "./feed-engine"
-import { contextKey, contextValue } from "./index"
+import { UnknownActionError, contextKey, contextValue } from "./index"
+
+// No-op action methods for test sources
+const noActions = {
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {}
+	},
+	async executeAction(actionId: string): Promise<void> {
+		throw new UnknownActionError(actionId)
+	},
+}
 
 // =============================================================================
 // CONTEXT KEYS
@@ -43,6 +53,7 @@ function createLocationSource(): SimulatedLocationSource {
 
 	return {
 		id: "location",
+		...noActions,
 
 		onContextUpdate(cb) {
 			callback = cb
@@ -71,6 +82,7 @@ function createWeatherSource(
 	return {
 		id: "weather",
 		dependencies: ["location"],
+		...noActions,
 
 		async fetchContext(context) {
 			const location = contextValue(context, LocationKey)
@@ -104,6 +116,7 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 	return {
 		id: "alert",
 		dependencies: ["weather"],
+		...noActions,
 
 		async fetchContext() {
 			return null
@@ -168,11 +181,12 @@ describe("FeedEngine", () => {
 	})
 
 	describe("graph validation", () => {
-		test("throws on missing dependency", () => {
+		test("throws on missing dependency", async () => {
 			const engine = new FeedEngine()
 			const orphan: FeedSource = {
 				id: "orphan",
 				dependencies: ["nonexistent"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -180,16 +194,17 @@ describe("FeedEngine", () => {
 
 			engine.register(orphan)
 
-			expect(engine.refresh()).rejects.toThrow(
+			await expect(engine.refresh()).rejects.toThrow(
 				'Source "orphan" depends on "nonexistent" which is not registered',
 			)
 		})
 
-		test("throws on circular dependency", () => {
+		test("throws on circular dependency", async () => {
 			const engine = new FeedEngine()
 			const a: FeedSource = {
 				id: "a",
 				dependencies: ["b"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -197,6 +212,7 @@ describe("FeedEngine", () => {
 			const b: FeedSource = {
 				id: "b",
 				dependencies: ["a"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -204,14 +220,15 @@ describe("FeedEngine", () => {
 
 			engine.register(a).register(b)
 
-			expect(engine.refresh()).rejects.toThrow("Circular dependency detected: a → b → a")
+			await expect(engine.refresh()).rejects.toThrow("Circular dependency detected: a → b → a")
 		})
 
-		test("throws on longer cycles", () => {
+		test("throws on longer cycles", async () => {
 			const engine = new FeedEngine()
 			const a: FeedSource = {
 				id: "a",
 				dependencies: ["c"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -219,6 +236,7 @@ describe("FeedEngine", () => {
 			const b: FeedSource = {
 				id: "b",
 				dependencies: ["a"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -226,6 +244,7 @@ describe("FeedEngine", () => {
 			const c: FeedSource = {
 				id: "c",
 				dependencies: ["b"],
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -233,7 +252,7 @@ describe("FeedEngine", () => {
 
 			engine.register(a).register(b).register(c)
 
-			expect(engine.refresh()).rejects.toThrow("Circular dependency detected")
+			await expect(engine.refresh()).rejects.toThrow("Circular dependency detected")
 		})
 	})
 
@@ -243,6 +262,7 @@ describe("FeedEngine", () => {
 
 			const location: FeedSource = {
 				id: "location",
+				...noActions,
 				async fetchContext() {
 					order.push("location")
 					return { [LocationKey]: { lat: 51.5, lng: -0.1 } }
@@ -252,6 +272,7 @@ describe("FeedEngine", () => {
 			const weather: FeedSource = {
 				id: "weather",
 				dependencies: ["location"],
+				...noActions,
 				async fetchContext(ctx) {
 					order.push("weather")
 					const loc = contextValue(ctx, LocationKey)
@@ -277,8 +298,14 @@ describe("FeedEngine", () => {
 
 			const { context } = await engine.refresh()
 
-			expect(contextValue(context, LocationKey)).toEqual({ lat: 51.5, lng: -0.1 })
-			expect(contextValue(context, WeatherKey)).toEqual({ temperature: 20, condition: "sunny" })
+			expect(contextValue(context, LocationKey)).toEqual({
+				lat: 51.5,
+				lng: -0.1,
+			})
+			expect(contextValue(context, WeatherKey)).toEqual({
+				temperature: 20,
+				condition: "sunny",
+			})
 		})
 
 		test("collects items from all sources", async () => {
@@ -318,6 +345,7 @@ describe("FeedEngine", () => {
 		test("handles missing upstream context gracefully", async () => {
 			const location: FeedSource = {
 				id: "location",
+				...noActions,
 				async fetchContext() {
 					return null // No location available
 				},
@@ -336,6 +364,7 @@ describe("FeedEngine", () => {
 		test("captures errors from fetchContext", async () => {
 			const failing: FeedSource = {
 				id: "failing",
+				...noActions,
 				async fetchContext() {
 					throw new Error("Context fetch failed")
 				},
@@ -353,6 +382,7 @@ describe("FeedEngine", () => {
 		test("captures errors from fetchItems", async () => {
 			const failing: FeedSource = {
 				id: "failing",
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -373,6 +403,7 @@ describe("FeedEngine", () => {
 		test("continues after source error", async () => {
 			const failing: FeedSource = {
 				id: "failing",
+				...noActions,
 				async fetchContext() {
 					throw new Error("Failed")
 				},
@@ -380,6 +411,7 @@ describe("FeedEngine", () => {
 
 			const working: FeedSource = {
 				id: "working",
+				...noActions,
 				async fetchContext() {
 					return null
 				},
@@ -423,7 +455,10 @@ describe("FeedEngine", () => {
 			await engine.refresh()
 
 			const context = engine.currentContext()
-			expect(contextValue(context, LocationKey)).toEqual({ lat: 51.5, lng: -0.1 })
+			expect(contextValue(context, LocationKey)).toEqual({
+				lat: 51.5,
+				lng: -0.1,
+			})
 		})
 	})
 
@@ -496,6 +531,111 @@ describe("FeedEngine", () => {
 			engine.start()
 			engine.start()
 			engine.stop()
+		})
+	})
+
+	describe("executeAction", () => {
+		test("routes action to correct source", async () => {
+			let receivedAction = ""
+			let receivedParams: unknown = {}
+
+			const source: FeedSource = {
+				id: "test-source",
+				async listActions() {
+					return {
+						"do-thing": { id: "do-thing" },
+					}
+				},
+				async executeAction(actionId, params) {
+					receivedAction = actionId
+					receivedParams = params
+				},
+				async fetchContext() {
+					return null
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+			await engine.executeAction("test-source", "do-thing", { key: "value" })
+
+			expect(receivedAction).toBe("do-thing")
+			expect(receivedParams).toEqual({ key: "value" })
+		})
+
+		test("throws for unknown source", async () => {
+			const engine = new FeedEngine()
+
+			await expect(engine.executeAction("nonexistent", "action", {})).rejects.toThrow(
+				"Source not found: nonexistent",
+			)
+		})
+
+		test("throws for unknown action on source", async () => {
+			const source: FeedSource = {
+				id: "test-source",
+				...noActions,
+				async fetchContext() {
+					return null
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+
+			await expect(engine.executeAction("test-source", "nonexistent", {})).rejects.toThrow(
+				'Action "nonexistent" not found on source "test-source"',
+			)
+		})
+	})
+
+	describe("listActions", () => {
+		test("returns actions for a specific source", async () => {
+			const source: FeedSource = {
+				id: "test-source",
+				async listActions() {
+					return {
+						"action-1": { id: "action-1" },
+						"action-2": { id: "action-2" },
+					}
+				},
+				async executeAction() {},
+				async fetchContext() {
+					return null
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+			const actions = await engine.listActions("test-source")
+
+			expect(Object.keys(actions)).toEqual(["action-1", "action-2"])
+		})
+
+		test("throws for unknown source", async () => {
+			const engine = new FeedEngine()
+
+			await expect(engine.listActions("nonexistent")).rejects.toThrow(
+				"Source not found: nonexistent",
+			)
+		})
+
+		test("throws on mismatched action ID", async () => {
+			const source: FeedSource = {
+				id: "bad-source",
+				async listActions() {
+					return {
+						"correct-key": { id: "wrong-id" },
+					}
+				},
+				async executeAction() {},
+				async fetchContext() {
+					return null
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+
+			await expect(engine.listActions("bad-source")).rejects.toThrow(
+				'Action ID mismatch on source "bad-source"',
+			)
 		})
 	})
 })

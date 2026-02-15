@@ -1,4 +1,5 @@
-import type { Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedSource } from "@aris/core"
+import { UnknownActionError } from "@aris/core"
 
 import { DAVClient } from "tsdav"
 
@@ -37,7 +38,7 @@ const DEFAULT_LOOK_AHEAD_DAYS = 0
  * ```
  */
 export class CalendarSource implements FeedSource<CalendarFeedItem> {
-	readonly id = "apple-calendar"
+	readonly id = "aris.apple-calendar"
 
 	private readonly credentialProvider: CalendarCredentialProvider
 	private readonly userId: string
@@ -56,6 +57,14 @@ export class CalendarSource implements FeedSource<CalendarFeedItem> {
 		this.userId = userId
 		this.lookAheadDays = options?.lookAheadDays ?? DEFAULT_LOOK_AHEAD_DAYS
 		this.injectedClient = options?.davClient ?? null
+	}
+
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {}
+	}
+
+	async executeAction(actionId: string): Promise<void> {
+		throw new UnknownActionError(actionId)
 	}
 
 	async fetchContext(context: Context): Promise<Partial<Context> | null> {

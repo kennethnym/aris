@@ -94,12 +94,12 @@ describe("TflSource", () => {
 	describe("interface", () => {
 		test("has correct id", () => {
 			const source = new TflSource({ client: api })
-			expect(source.id).toBe("tfl")
+			expect(source.id).toBe("aris.tfl")
 		})
 
 		test("depends on location", () => {
 			const source = new TflSource({ client: api })
-			expect(source.dependencies).toEqual(["location"])
+			expect(source.dependencies).toEqual(["aris.location"])
 		})
 
 		test("implements fetchItems", () => {
@@ -122,7 +122,12 @@ describe("TflSource", () => {
 						severity: "minor-delays",
 						description: "Delays",
 					},
-					{ lineId: "central", lineName: "Central", severity: "closure", description: "Closed" },
+					{
+						lineId: "central",
+						lineName: "Central",
+						severity: "closure",
+						description: "Closed",
+					},
 				]
 				return lines ? all.filter((s) => lines.includes(s.lineId)) : all
 			},
@@ -144,7 +149,10 @@ describe("TflSource", () => {
 		})
 
 		test("DEFAULT_LINES_OF_INTEREST restores all lines", async () => {
-			const source = new TflSource({ client: lineFilteringApi, lines: ["northern"] })
+			const source = new TflSource({
+				client: lineFilteringApi,
+				lines: ["northern"],
+			})
 			const filtered = await source.fetchItems(createContext())
 			expect(filtered.length).toBe(1)
 
@@ -164,7 +172,12 @@ describe("TflSource", () => {
 
 		test("feed items have correct base structure", async () => {
 			const source = new TflSource({ client: api })
-			const location: Location = { lat: 51.5074, lng: -0.1278, accuracy: 10, timestamp: new Date() }
+			const location: Location = {
+				lat: 51.5074,
+				lng: -0.1278,
+				accuracy: 10,
+				timestamp: new Date(),
+			}
 			const items = await source.fetchItems(createContext(location))
 
 			for (const item of items) {
@@ -178,7 +191,12 @@ describe("TflSource", () => {
 
 		test("feed items have correct data structure", async () => {
 			const source = new TflSource({ client: api })
-			const location: Location = { lat: 51.5074, lng: -0.1278, accuracy: 10, timestamp: new Date() }
+			const location: Location = {
+				lat: 51.5074,
+				lng: -0.1278,
+				accuracy: 10,
+				timestamp: new Date(),
+			}
 			const items = await source.fetchItems(createContext(location))
 
 			for (const item of items) {
@@ -230,7 +248,12 @@ describe("TflSource", () => {
 
 		test("closestStationDistance is number when location provided", async () => {
 			const source = new TflSource({ client: api })
-			const location: Location = { lat: 51.5074, lng: -0.1278, accuracy: 10, timestamp: new Date() }
+			const location: Location = {
+				lat: 51.5074,
+				lng: -0.1278,
+				accuracy: 10,
+				timestamp: new Date(),
+			}
 			const items = await source.fetchItems(createContext(location))
 
 			for (const item of items) {
@@ -246,6 +269,62 @@ describe("TflSource", () => {
 			for (const item of items) {
 				expect(item.data.closestStationDistance).toBeNull()
 			}
+		})
+	})
+
+	describe("actions", () => {
+		test("listActions returns set-lines-of-interest", async () => {
+			const source = new TflSource({ client: api })
+			const actions = await source.listActions()
+
+			expect(actions["set-lines-of-interest"]).toBeDefined()
+			expect(actions["set-lines-of-interest"]!.id).toBe("set-lines-of-interest")
+		})
+
+		test("executeAction set-lines-of-interest updates lines", async () => {
+			const lineFilteringApi: ITflApi = {
+				async fetchLineStatuses(lines?: TflLineId[]): Promise<TflLineStatus[]> {
+					const all: TflLineStatus[] = [
+						{
+							lineId: "northern",
+							lineName: "Northern",
+							severity: "minor-delays",
+							description: "Delays",
+						},
+						{
+							lineId: "central",
+							lineName: "Central",
+							severity: "closure",
+							description: "Closed",
+						},
+					]
+					return lines ? all.filter((s) => lines.includes(s.lineId)) : all
+				},
+				async fetchStations(): Promise<StationLocation[]> {
+					return []
+				},
+			}
+
+			const source = new TflSource({ client: lineFilteringApi })
+			await source.executeAction("set-lines-of-interest", ["northern"])
+
+			const items = await source.fetchItems(createContext())
+			expect(items.length).toBe(1)
+			expect(items[0]!.data.line).toBe("northern")
+		})
+
+		test("executeAction throws on invalid input", async () => {
+			const source = new TflSource({ client: api })
+
+			await expect(
+				source.executeAction("set-lines-of-interest", "not-an-array"),
+			).rejects.toThrow()
+		})
+
+		test("executeAction throws for unknown action", async () => {
+			const source = new TflSource({ client: api })
+
+			await expect(source.executeAction("nonexistent", {})).rejects.toThrow("Unknown action")
 		})
 	})
 })

@@ -1,4 +1,6 @@
-import type { Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedSource } from "@aris/core"
+
+import { UnknownActionError } from "@aris/core"
 
 import type {
 	ApiCalendarEvent,
@@ -63,7 +65,7 @@ const PRIORITY_ALL_DAY = 0.4
  * ```
  */
 export class GoogleCalendarSource implements FeedSource<CalendarFeedItem> {
-	readonly id = "google-calendar"
+	readonly id = "aris.google-calendar"
 
 	private readonly client: GoogleCalendarClient
 	private readonly calendarIds: string[] | undefined
@@ -73,6 +75,14 @@ export class GoogleCalendarSource implements FeedSource<CalendarFeedItem> {
 		this.client = options.client ?? new DefaultGoogleCalendarClient(options.oauthProvider)
 		this.calendarIds = options.calendarIds
 		this.lookaheadHours = options.lookaheadHours ?? DEFAULT_LOOKAHEAD_HOURS
+	}
+
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {}
+	}
+
+	async executeAction(actionId: string): Promise<void> {
+		throw new UnknownActionError(actionId)
 	}
 
 	async fetchContext(context: Context): Promise<Partial<Context> | null> {

@@ -1,3 +1,4 @@
+import type { ActionDefinition } from "./action"
 import type { Context } from "./context"
 import type { FeedItem } from "./feed"
 import type { FeedSource } from "./feed-source"
@@ -187,6 +188,44 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 		return this.context
 	}
 
+	/**
+	 * Execute an action on a registered source.
+	 * Validates the action exists before dispatching.
+	 *
+	 * In pull-only mode (before `start()` is called), the action mutates source
+	 * state but does not automatically refresh dependents. Call `refresh()`
+	 * after to propagate changes. In reactive mode (`start()` called), sources
+	 * that push context updates (e.g., LocationSource) will trigger dependent
+	 * refresh automatically.
+	 */
+	async executeAction(sourceId: string, actionId: string, params: unknown): Promise<unknown> {
+		const actions = await this.listActions(sourceId)
+		if (!(actionId in actions)) {
+			throw new Error(`Action "${actionId}" not found on source "${sourceId}"`)
+		}
+		return this.sources.get(sourceId)!.executeAction(actionId, params)
+	}
+
+	/**
+	 * List actions available on a specific source.
+	 * Validates that action definition IDs match their record keys.
+	 */
+	async listActions(sourceId: string): Promise<Record<string, ActionDefinition>> {
+		const source = this.sources.get(sourceId)
+		if (!source) {
+			throw new Error(`Source not found: ${sourceId}`)
+		}
+		const actions = await source.listActions()
+		for (const [key, definition] of Object.entries(actions)) {
+			if (key !== definition.id) {
+				throw new Error(
+					`Action ID mismatch on source "${sourceId}": key "${key}" !== definition.id "${definition.id}"`,
+				)
+			}
+		}
+		return actions
+	}
+
 	private ensureGraph(): SourceGraph {
 		if (!this.graph) {
 			this.graph = buildGraph(Array.from(this.sources.values()))
@@ -240,7 +279,11 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		items.sort((a, b) => b.priority - a.priority)
 
-		this.notifySubscribers({ context: this.context, items: items as TItems[], errors })
+		this.notifySubscribers({
+			context: this.context,
+			items: items as TItems[],
+			errors,
+		})
 	}
 
 	private collectDependents(sourceId: string, graph: SourceGraph): string[] {

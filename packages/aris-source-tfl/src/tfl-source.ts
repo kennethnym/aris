@@ -1,7 +1,8 @@
-import type { Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedSource } from "@aris/core"
 
-import { contextValue } from "@aris/core"
+import { UnknownActionError, contextValue } from "@aris/core"
 import { LocationKey } from "@aris/source-location"
+import { type } from "arktype"
 
 import type {
 	ITflApi,
@@ -13,7 +14,9 @@ import type {
 	TflSourceOptions,
 } from "./types.ts"
 
-import { TflApi } from "./tfl-api.ts"
+import { TflApi, lineId } from "./tfl-api.ts"
+
+const setLinesInput = lineId.array()
 
 const SEVERITY_PRIORITY: Record<TflAlertSeverity, number> = {
 	closure: 1.0,
@@ -63,8 +66,8 @@ export class TflSource implements FeedSource<TflAlertFeedItem> {
 		"elizabeth",
 	]
 
-	readonly id = "tfl"
-	readonly dependencies = ["location"]
+	readonly id = "aris.tfl"
+	readonly dependencies = ["aris.location"]
 
 	private readonly client: ITflApi
 	private lines: TflLineId[]
@@ -75,6 +78,31 @@ export class TflSource implements FeedSource<TflAlertFeedItem> {
 		}
 		this.client = options.client ?? new TflApi(options.apiKey!)
 		this.lines = options.lines ?? [...TflSource.DEFAULT_LINES_OF_INTEREST]
+	}
+
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {
+			"set-lines-of-interest": {
+				id: "set-lines-of-interest",
+				description: "Update the set of monitored TfL lines",
+				input: setLinesInput,
+			},
+		}
+	}
+
+	async executeAction(actionId: string, params: unknown): Promise<void> {
+		switch (actionId) {
+			case "set-lines-of-interest": {
+				const result = setLinesInput(params)
+				if (result instanceof type.errors) {
+					throw new Error(result.summary)
+				}
+				this.setLinesOfInterest(result)
+				return
+			}
+			default:
+				throw new UnknownActionError(actionId)
+		}
 	}
 
 	async fetchContext(): Promise<null> {

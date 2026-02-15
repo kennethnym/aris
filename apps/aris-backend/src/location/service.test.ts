@@ -9,7 +9,7 @@ describe("LocationService", () => {
 		const source = service.feedSourceForUser("user-1")
 
 		expect(source).toBeDefined()
-		expect(source.id).toBe("location")
+		expect(source.id).toBe("aris.location")
 	})
 
 	test("feedSourceForUser returns same source for same user", () => {

@@ -2,6 +2,10 @@
 export type { Context, ContextKey } from "./context"
 export { contextKey, contextValue } from "./context"
 
+// Actions
+export type { ActionDefinition } from "./action"
+export { UnknownActionError } from "./action"
+
 // Feed
 export type { FeedItem } from "./feed"
 

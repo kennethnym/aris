@@ -34,12 +34,12 @@ describe("WeatherSource", () => {
 	describe("properties", () => {
 		test("has correct id", () => {
 			const source = new WeatherSource({ credentials: mockCredentials })
-			expect(source.id).toBe("weather")
+			expect(source.id).toBe("aris.weather")
 		})
 
 		test("depends on location", () => {
 			const source = new WeatherSource({ credentials: mockCredentials })
-			expect(source.dependencies).toEqual(["location"])
+			expect(source.dependencies).toEqual(["aris.location"])
 		})
 
 		test("throws error if neither client nor credentials provided", () => {
@@ -78,7 +78,10 @@ describe("WeatherSource", () => {
 		})
 
 		test("converts temperature to imperial", async () => {
-			const source = new WeatherSource({ client: mockClient, units: Units.imperial })
+			const source = new WeatherSource({
+				client: mockClient,
+				units: Units.imperial,
+			})
 			const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 			const result = await source.fetchContext(context)

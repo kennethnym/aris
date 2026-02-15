@@ -1,22 +1,9 @@
-import type { Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedSource } from "@aris/core"
 
-import { contextKey, type ContextKey } from "@aris/core"
+import { UnknownActionError, contextKey, type ContextKey } from "@aris/core"
+import { type } from "arktype"
 
-/**
- * Geographic coordinates with accuracy and timestamp.
- */
-export interface Location {
-	lat: number
-	lng: number
-	/** Accuracy in meters */
-	accuracy: number
-	timestamp: Date
-}
-
-export interface LocationSourceOptions {
-	/** Number of locations to retain in history. Defaults to 1. */
-	historySize?: number
-}
+import { Location, type LocationSourceOptions } from "./types.ts"
 
 export const LocationKey: ContextKey<Location> = contextKey("location")
 
@@ -29,7 +16,7 @@ export const LocationKey: ContextKey<Location> = contextKey("location")
  * Does not produce feed items - always returns empty array from `fetchItems`.
  */
 export class LocationSource implements FeedSource {
-	readonly id = "location"
+	readonly id = "aris.location"
 
 	private readonly historySize: number
 	private locations: Location[] = []
@@ -37,6 +24,31 @@ export class LocationSource implements FeedSource {
 
 	constructor(options: LocationSourceOptions = {}) {
 		this.historySize = options.historySize ?? 1
+	}
+
+	async listActions(): Promise<Record<string, ActionDefinition>> {
+		return {
+			"update-location": {
+				id: "update-location",
+				description: "Push a new location update",
+				input: Location,
+			},
+		}
+	}
+
+	async executeAction(actionId: string, params: unknown): Promise<void> {
+		switch (actionId) {
+			case "update-location": {
+				const result = Location(params)
+				if (result instanceof type.errors) {
+					throw new Error(result.summary)
+				}
+				this.pushLocation(result)
+				return
+			}
+			default:
+				throw new UnknownActionError(actionId)
+		}
 	}
 
 	/**

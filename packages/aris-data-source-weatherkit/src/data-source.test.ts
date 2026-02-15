@@ -26,14 +26,18 @@ const createMockContext = (location?: { lat: number; lng: number }): Context => 
 
 describe("WeatherKitDataSource", () => {
 	test("returns empty array when location is missing", async () => {
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({
+			credentials: mockCredentials,
+		})
 		const items = await dataSource.query(createMockContext())
 
 		expect(items).toEqual([])
 	})
 
 	test("type is weather-current", () => {
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({
+			credentials: mockCredentials,
+		})
 
 		expect(dataSource.type).toBe(WeatherFeedItemType.current)
 	})
@@ -100,7 +104,9 @@ describe("WeatherKitDataSource with fixture", () => {
 	})
 
 	test("default limits are applied", () => {
-		const dataSource = new WeatherKitDataSource({ credentials: mockCredentials })
+		const dataSource = new WeatherKitDataSource({
+			credentials: mockCredentials,
+		})
 
 		expect(dataSource["hourlyLimit"]).toBe(12)
 		expect(dataSource["dailyLimit"]).toBe(7)
@@ -163,8 +169,12 @@ describe("query() with mocked client", () => {
 		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
-		const metricItems = await dataSource.query(context, { units: Units.metric })
-		const imperialItems = await dataSource.query(context, { units: Units.imperial })
+		const metricItems = await dataSource.query(context, {
+			units: Units.metric,
+		})
+		const imperialItems = await dataSource.query(context, {
+			units: Units.imperial,
+		})
 
 		const metricCurrent = metricItems.find((i) => i.type === WeatherFeedItemType.current)
 		const imperialCurrent = imperialItems.find((i) => i.type === WeatherFeedItemType.current)
