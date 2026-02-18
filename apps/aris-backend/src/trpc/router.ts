@@ -1,15 +1,25 @@
 import { initTRPC, TRPCError } from "@trpc/server"
 
-import type { LocationService } from "../location/service.ts"
-import type { WeatherService } from "../weather/service.ts"
+import type { UserSessionManager } from "../session/index.ts"
 import type { Context } from "./context.ts"
 
 import { createLocationRouter } from "../location/router.ts"
 
-interface AuthedContext {
-	user: NonNullable<Context["user"]>
-	session: NonNullable<Context["session"]>
+export type TRPC = ReturnType<typeof createTRPC>
+
+export interface TRPCRouterDeps {
+	sessionManager: UserSessionManager
 }
+
+export function createTRPCRouter({ sessionManager }: TRPCRouterDeps) {
+	const t = createTRPC()
+
+	return t.router({
+		location: createLocationRouter(t, { sessionManager }),
+	})
+}
+
+export type TRPCRouter = ReturnType<typeof createTRPCRouter>
 
 function createTRPC() {
 	const t = initTRPC.context<Context>().create()
@@ -32,19 +42,3 @@ function createTRPC() {
 	}
 }
 
-export type TRPC = ReturnType<typeof createTRPC>
-
-export interface TRPCRouterDeps {
-	locationService: LocationService
-	weatherService: WeatherService
-}
-
-export function createTRPCRouter({ locationService }: TRPCRouterDeps) {
-	const t = createTRPC()
-
-	return t.router({
-		location: createLocationRouter(t, { locationService }),
-	})
-}
-
-export type TRPCRouter = ReturnType<typeof createTRPCRouter>
