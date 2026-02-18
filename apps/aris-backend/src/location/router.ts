@@ -1,10 +1,7 @@
-import { TRPCError } from "@trpc/server"
 import { type } from "arktype"
 
+import type { UserSessionManager } from "../session/index.ts"
 import type { TRPC } from "../trpc/router.ts"
-import type { LocationService } from "./service.ts"
-
-import { UserNotFoundError } from "../lib/error.ts"
 
 const locationInput = type({
 	lat: "number",
@@ -15,23 +12,17 @@ const locationInput = type({
 
 export function createLocationRouter(
 	t: TRPC,
-	{ locationService }: { locationService: LocationService },
+	{ sessionManager }: { sessionManager: UserSessionManager },
 ) {
 	return t.router({
-		update: t.procedure.input(locationInput).mutation(({ input, ctx }) => {
-			try {
-				locationService.updateUserLocation(ctx.user.id, {
-					lat: input.lat,
-					lng: input.lng,
-					accuracy: input.accuracy,
-					timestamp: input.timestamp,
-				})
-			} catch (error) {
-				if (error instanceof UserNotFoundError) {
-					throw new TRPCError({ code: "NOT_FOUND", message: error.message })
-				}
-				throw error
-			}
+		update: t.procedure.input(locationInput).mutation(async ({ input, ctx }) => {
+			const session = sessionManager.getOrCreate(ctx.user.id)
+			await session.engine.executeAction("aris.location", "update-location", {
+				lat: input.lat,
+				lng: input.lng,
+				accuracy: input.accuracy,
+				timestamp: input.timestamp,
+			})
 		}),
 	})
 }
