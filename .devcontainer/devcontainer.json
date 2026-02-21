@@ -11,12 +11,12 @@
 		"dockerfile": "Dockerfile"
 	},
 	"postCreateCommand": "bun install",
-	"postStartCommand": "./scripts/setup-git.sh && ./scripts/setup-nvim.sh"
+	"postStartCommand": "./scripts/setup-git.sh && ./scripts/setup-nvim.sh",
 	// Features add additional features to your environment. See https://containers.dev/features
 	// Beware: features are not supported on all platforms and may have unintended side-effects.
-	// "features": {
-	//   "ghcr.io/devcontainers/features/docker-in-docker": {
-	//     "moby": false
-	//   }
-	// }
+	"features": {
+		"ghcr.io/tailscale/codespace/tailscale": {
+			"version": "latest"
+		}
+	}
 }
