@@ -75,7 +75,7 @@
 								]
 							},
 							{
-								"fontFamily": "SourceSerif4",
+								"fontFamily": "Source Serif 4",
 								"fontDefinitions": [
 									{ "path": "./assets/fonts/SourceSerif4_200ExtraLight.ttf", "weight": 200 },
 									{ "path": "./assets/fonts/SourceSerif4_200ExtraLight_Italic.ttf", "weight": 200, "style": "italic" },
