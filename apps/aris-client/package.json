@@ -11,6 +11,7 @@
 		"web": "expo start --web",
 		"lint": "expo lint",
 		"build:ios": "eas build --profile development --platform ios --non-interactive",
+		"build:ios-simulator": "eas build --profile development-simulator --platform ios --non-interactive",
 		"debugger": "bun run scripts/open-debugger.ts"
 	},
 	"dependencies": {
