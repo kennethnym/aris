@@ -29,7 +29,13 @@ export function registerLocationHttpHandlers(
 }
 
 async function handleUpdateLocation(c: Context<Env>) {
-	const body = await c.req.json()
+	let body: unknown
+	try {
+		body = await c.req.json()
+	} catch {
+		return c.json({ error: "Invalid JSON" }, 400)
+	}
+
 	const result = locationInput(body)
 
 	if (result instanceof type.errors) {
