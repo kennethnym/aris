@@ -46,5 +46,5 @@ async function handleUpdateLocation(c: Context<Env>) {
 		timestamp: new Date(result.timestamp),
 	})
 
-	return c.status(204)
+	return c.body(null, 204)
 }
