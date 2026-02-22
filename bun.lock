@@ -37,6 +37,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@expo-google-fonts/inter": "^0.4.2",
+        "@expo-google-fonts/source-serif-4": "^0.4.1",
         "@expo/vector-icons": "^15.0.3",
         "@react-navigation/bottom-tabs": "^7.4.0",
         "@react-navigation/elements": "^2.6.3",
@@ -384,6 +385,8 @@
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
 
     "@expo-google-fonts/inter": ["@expo-google-fonts/inter@0.4.2", "", {}, "sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ=="],
+
+    "@expo-google-fonts/source-serif-4": ["@expo-google-fonts/source-serif-4@0.4.1", "", {}, "sha512-Ej4UXDjW1kwYPHG8YLq6fK1bqnJGb3K35J3S5atSL0ScKFAFLKvndxoTWeCls7mybtlS9x99hzwDeXCBkiI3rA=="],
 
     "@expo/apple-utils": ["@expo/apple-utils@2.1.13", "", { "bin": { "apple-utils": "bin.js" } }, "sha512-nt3efiJhAWTHl9ikKYrHEuv3dhqCdicsHFRE9LmvtcVsPhXl9bAsm0gbACoLPr7ClP8664H/S6SdVJOD/tw0jg=="],
 

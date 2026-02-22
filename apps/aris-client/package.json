@@ -16,6 +16,7 @@
 	},
 	"dependencies": {
 		"@expo-google-fonts/inter": "^0.4.2",
+		"@expo-google-fonts/source-serif-4": "^0.4.1",
 		"@expo/vector-icons": "^15.0.3",
 		"@react-navigation/bottom-tabs": "^7.4.0",
 		"@react-navigation/elements": "^2.6.3",
