@@ -1,10 +1,10 @@
+import type { WeatherKitClient, WeatherKitResponse } from "@aris/source-weatherkit"
+
 import { LocationSource } from "@aris/source-location"
 import { describe, expect, mock, test } from "bun:test"
 
 import { WeatherSourceProvider } from "../weather/provider.ts"
 import { UserSessionManager } from "./user-session-manager.ts"
-
-import type { WeatherKitClient, WeatherKitResponse } from "@aris/source-weatherkit"
 
 const mockWeatherClient: WeatherKitClient = {
 	fetch: async () => ({}) as WeatherKitResponse,

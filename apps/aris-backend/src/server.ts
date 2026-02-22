@@ -1,12 +1,10 @@
 import { LocationSource } from "@aris/source-location"
-import { trpcServer } from "@hono/trpc-server"
 import { Hono } from "hono"
 
 import { registerAuthHandlers } from "./auth/http.ts"
+import { registerLocationHttpHandlers } from "./location/http.ts"
 import { UserSessionManager } from "./session/index.ts"
 import { WeatherSourceProvider } from "./weather/provider.ts"
-import { createContext } from "./trpc/context.ts"
-import { createTRPCRouter } from "./trpc/router.ts"
 
 function main() {
 	const sessionManager = new UserSessionManager([
@@ -21,21 +19,12 @@ function main() {
 		}),
 	])
 
-	const trpcRouter = createTRPCRouter({ sessionManager })
-
 	const app = new Hono()
 
 	app.get("/health", (c) => c.json({ status: "ok" }))
 
 	registerAuthHandlers(app)
-
-	app.use(
-		"/trpc/*",
-		trpcServer({
-			router: trpcRouter,
-			createContext,
-		}),
-	)
+	registerLocationHttpHandlers(app, { sessionManager })
 
 	return app
 }

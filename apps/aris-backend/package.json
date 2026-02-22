@@ -13,8 +13,6 @@
 		"@aris/source-location": "workspace:*",
 		"@aris/source-tfl": "workspace:*",
 		"@aris/source-weatherkit": "workspace:*",
-		"@hono/trpc-server": "^0.3",
-		"@trpc/server": "^11",
 		"arktype": "^2.1.29",
 		"better-auth": "^1",
 		"hono": "^4",

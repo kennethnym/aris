@@ -1,13 +1,16 @@
 import type { Context, Next } from "hono"
 
+import type { AuthSession, AuthUser } from "./session.ts"
+
 import { auth } from "./index.ts"
 
-type SessionUser = typeof auth.$Infer.Session.user
-type Session = typeof auth.$Infer.Session.session
-
 export interface SessionVariables {
-	user: SessionUser | null
-	session: Session | null
+	user: AuthUser | null
+	session: AuthSession | null
+}
+
+declare module "hono" {
+	interface ContextVariableMap extends SessionVariables {}
 }
 
 /**
@@ -48,7 +51,7 @@ export async function requireSession(c: Context, next: Next): Promise<Response |
  */
 export async function getSessionFromHeaders(
 	headers: Headers,
-): Promise<{ user: SessionUser; session: Session } | null> {
+): Promise<{ user: AuthUser; session: AuthSession } | null> {
 	const session = await auth.api.getSession({ headers })
 	return session
 }
