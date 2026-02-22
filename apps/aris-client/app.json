@@ -50,22 +50,22 @@
 				"expo-font",
 				{
 					"fonts": [
-						"node_modules/@expo-google-fonts/source-serif-4/200ExtraLight/SourceSerif4_200ExtraLight.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/200ExtraLight_Italic/SourceSerif4_200ExtraLight_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/300Light/SourceSerif4_300Light.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/300Light_Italic/SourceSerif4_300Light_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/400Regular/SourceSerif4_400Regular.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/400Regular_Italic/SourceSerif4_400Regular_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/500Medium/SourceSerif4_500Medium.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/500Medium_Italic/SourceSerif4_500Medium_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/600SemiBold/SourceSerif4_600SemiBold.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/600SemiBold_Italic/SourceSerif4_600SemiBold_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/700Bold/SourceSerif4_700Bold.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/700Bold_Italic/SourceSerif4_700Bold_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/800ExtraBold/SourceSerif4_800ExtraBold.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/800ExtraBold_Italic/SourceSerif4_800ExtraBold_Italic.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/900Black/SourceSerif4_900Black.ttf",
-						"node_modules/@expo-google-fonts/source-serif-4/900Black_Italic/SourceSerif4_900Black_Italic.ttf"
+						"./assets/fonts/SourceSerif4_200ExtraLight.ttf",
+						"./assets/fonts/SourceSerif4_200ExtraLight_Italic.ttf",
+						"./assets/fonts/SourceSerif4_300Light.ttf",
+						"./assets/fonts/SourceSerif4_300Light_Italic.ttf",
+						"./assets/fonts/SourceSerif4_400Regular.ttf",
+						"./assets/fonts/SourceSerif4_400Regular_Italic.ttf",
+						"./assets/fonts/SourceSerif4_500Medium.ttf",
+						"./assets/fonts/SourceSerif4_500Medium_Italic.ttf",
+						"./assets/fonts/SourceSerif4_600SemiBold.ttf",
+						"./assets/fonts/SourceSerif4_600SemiBold_Italic.ttf",
+						"./assets/fonts/SourceSerif4_700Bold.ttf",
+						"./assets/fonts/SourceSerif4_700Bold_Italic.ttf",
+						"./assets/fonts/SourceSerif4_800ExtraBold.ttf",
+						"./assets/fonts/SourceSerif4_800ExtraBold_Italic.ttf",
+						"./assets/fonts/SourceSerif4_900Black.ttf",
+						"./assets/fonts/SourceSerif4_900Black_Italic.ttf"
 					]
 				}
 			]
