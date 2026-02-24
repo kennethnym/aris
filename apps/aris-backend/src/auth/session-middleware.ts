@@ -1,4 +1,4 @@
-import type { Context, Next } from "hono"
+import type { Context, MiddlewareHandler, Next } from "hono"
 
 import type { AuthSession, AuthUser } from "./session.ts"
 
@@ -8,6 +8,10 @@ export interface SessionVariables {
 	user: AuthUser | null
 	session: AuthSession | null
 }
+
+export type AuthSessionEnv = { Variables: SessionVariables }
+
+export type AuthSessionMiddleware = MiddlewareHandler<AuthSessionEnv>
 
 declare module "hono" {
 	interface ContextVariableMap extends SessionVariables {}
@@ -54,4 +58,19 @@ export async function getSessionFromHeaders(
 ): Promise<{ user: AuthUser; session: AuthSession } | null> {
 	const session = await auth.api.getSession({ headers })
 	return session
+}
+
+/**
+ * Test-only middleware that injects a fake user and session.
+ * Pass userId to simulate an authenticated request, or omit to get 401.
+ */
+export function mockAuthSessionMiddleware(userId?: string): AuthSessionMiddleware {
+	return async (c: Context, next: Next): Promise<Response | void> => {
+		if (!userId) {
+			return c.json({ error: "Unauthorized" }, 401)
+		}
+		c.set("user", { id: userId } as AuthUser)
+		c.set("session", { id: "mock-session" } as AuthSession)
+		await next()
+	}
 }

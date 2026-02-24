@@ -2,6 +2,8 @@ import { LocationSource } from "@aris/source-location"
 import { Hono } from "hono"
 
 import { registerAuthHandlers } from "./auth/http.ts"
+import { requireSession } from "./auth/session-middleware.ts"
+import { registerFeedHttpHandlers } from "./feed/http.ts"
 import { registerLocationHttpHandlers } from "./location/http.ts"
 import { UserSessionManager } from "./session/index.ts"
 import { WeatherSourceProvider } from "./weather/provider.ts"
@@ -24,6 +26,7 @@ function main() {
 	app.get("/health", (c) => c.json({ status: "ok" }))
 
 	registerAuthHandlers(app)
+	registerFeedHttpHandlers(app, { sessionManager, authSessionMiddleware: requireSession })
 	registerLocationHttpHandlers(app, { sessionManager })
 
 	return app
