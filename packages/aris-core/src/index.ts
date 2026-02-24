@@ -13,7 +13,7 @@ export type { FeedItem } from "./feed"
 export type { FeedSource } from "./feed-source"
 
 // Feed Engine
-export type { FeedResult, FeedSubscriber, SourceError } from "./feed-engine"
+export type { FeedEngineConfig, FeedResult, FeedSubscriber, SourceError } from "./feed-engine"
 export { FeedEngine } from "./feed-engine"
 
 // =============================================================================
