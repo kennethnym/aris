@@ -638,4 +638,290 @@ describe("FeedEngine", () => {
 			)
 		})
 	})
+
+	describe("lastFeed", () => {
+		test("returns null before any refresh", () => {
+			const engine = new FeedEngine()
+
+			expect(engine.lastFeed()).toBeNull()
+		})
+
+		test("returns cached result after refresh", async () => {
+			const location = createLocationSource()
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+
+			const weather = createWeatherSource()
+			const engine = new FeedEngine().register(location).register(weather)
+
+			const refreshResult = await engine.refresh()
+
+			const cached = engine.lastFeed()
+			expect(cached).not.toBeNull()
+			expect(cached!.items).toEqual(refreshResult.items)
+			expect(cached!.context).toEqual(refreshResult.context)
+		})
+
+		test("returns null after TTL expires", async () => {
+			const engine = new FeedEngine({ cacheTtlMs: 50 })
+			const location = createLocationSource()
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+
+			engine.register(location)
+			await engine.refresh()
+
+			expect(engine.lastFeed()).not.toBeNull()
+
+			await new Promise((resolve) => setTimeout(resolve, 60))
+
+			expect(engine.lastFeed()).toBeNull()
+		})
+
+		test("defaults to 5 minute TTL", async () => {
+			const engine = new FeedEngine()
+			const location = createLocationSource()
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+
+			engine.register(location)
+			await engine.refresh()
+
+			// Should still be cached immediately
+			expect(engine.lastFeed()).not.toBeNull()
+		})
+
+		test("refresh always fetches from sources", async () => {
+			let fetchCount = 0
+			const source: FeedSource = {
+				id: "counter",
+				...noActions,
+				async fetchContext() {
+					fetchCount++
+					return null
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+
+			await engine.refresh()
+			await engine.refresh()
+			await engine.refresh()
+
+			expect(fetchCount).toBe(3)
+		})
+
+		test("reactive context update refreshes cache", async () => {
+			const location = createLocationSource()
+			const weather = createWeatherSource()
+
+			const engine = new FeedEngine({ cacheTtlMs: 5000 }).register(location).register(weather)
+
+			engine.start()
+
+			// Simulate location update which triggers reactive refresh
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+
+			// Wait for async reactive refresh to complete
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			const cached = engine.lastFeed()
+			expect(cached).not.toBeNull()
+			expect(cached!.items.length).toBeGreaterThan(0)
+
+			engine.stop()
+		})
+
+		test("reactive item update refreshes cache", async () => {
+			let itemUpdateCallback: (() => void) | null = null
+
+			const source: FeedSource = {
+				id: "reactive-items",
+				...noActions,
+				async fetchContext() {
+					return null
+				},
+				async fetchItems() {
+					return [
+						{
+							id: "item-1",
+							type: "test",
+							priority: 0.5,
+							timestamp: new Date(),
+							data: {},
+						},
+					]
+				},
+				onItemsUpdate(callback) {
+					itemUpdateCallback = callback
+					return () => {
+						itemUpdateCallback = null
+					}
+				},
+			}
+
+			const engine = new FeedEngine().register(source)
+			engine.start()
+
+			// Trigger item update
+			itemUpdateCallback!()
+
+			// Wait for async refresh
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			const cached = engine.lastFeed()
+			expect(cached).not.toBeNull()
+			expect(cached!.items).toHaveLength(1)
+
+			engine.stop()
+		})
+
+		test("TTL resets after reactive update", async () => {
+			const location = createLocationSource()
+			const weather = createWeatherSource()
+
+			const engine = new FeedEngine({ cacheTtlMs: 100 }).register(location).register(weather)
+
+			engine.start()
+
+			// Initial reactive update
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			expect(engine.lastFeed()).not.toBeNull()
+
+			// Wait 70ms (total 120ms from first update, past original TTL)
+			// but trigger another update at 50ms to reset TTL
+			location.simulateUpdate({ lat: 52.0, lng: -0.2 })
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			// Should still be cached because TTL was reset by second update
+			expect(engine.lastFeed()).not.toBeNull()
+
+			engine.stop()
+		})
+
+		test("cacheTtlMs is configurable", async () => {
+			const engine = new FeedEngine({ cacheTtlMs: 30 })
+			const location = createLocationSource()
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+
+			engine.register(location)
+			await engine.refresh()
+
+			expect(engine.lastFeed()).not.toBeNull()
+
+			await new Promise((resolve) => setTimeout(resolve, 40))
+
+			expect(engine.lastFeed()).toBeNull()
+		})
+
+		test("auto-refreshes on TTL interval after start", async () => {
+			let fetchCount = 0
+			const source: FeedSource = {
+				id: "counter",
+				...noActions,
+				async fetchContext() {
+					fetchCount++
+					return null
+				},
+				async fetchItems() {
+					return [
+						{
+							id: `item-${fetchCount}`,
+							type: "test",
+							priority: 0.5,
+							timestamp: new Date(),
+							data: {},
+						},
+					]
+				},
+			}
+
+			const engine = new FeedEngine({ cacheTtlMs: 50 }).register(source)
+			engine.start()
+
+			// Wait for two TTL intervals to elapse
+			await new Promise((resolve) => setTimeout(resolve, 120))
+
+			// Should have auto-refreshed at least twice
+			expect(fetchCount).toBeGreaterThanOrEqual(2)
+			expect(engine.lastFeed()).not.toBeNull()
+
+			engine.stop()
+		})
+
+		test("stop cancels periodic refresh", async () => {
+			let fetchCount = 0
+			const source: FeedSource = {
+				id: "counter",
+				...noActions,
+				async fetchContext() {
+					fetchCount++
+					return null
+				},
+			}
+
+			const engine = new FeedEngine({ cacheTtlMs: 50 }).register(source)
+			engine.start()
+			engine.stop()
+
+			const countAfterStop = fetchCount
+
+			// Wait past TTL
+			await new Promise((resolve) => setTimeout(resolve, 80))
+
+			// No additional fetches after stop
+			expect(fetchCount).toBe(countAfterStop)
+		})
+
+		test("reactive update resets periodic refresh timer", async () => {
+			let fetchCount = 0
+			const location = createLocationSource()
+			const countingWeather: FeedSource<WeatherFeedItem> = {
+				id: "weather",
+				dependencies: ["location"],
+				...noActions,
+				async fetchContext(ctx) {
+					fetchCount++
+					const loc = contextValue(ctx, LocationKey)
+					if (!loc) return null
+					return { [WeatherKey]: { temperature: 20, condition: "sunny" } }
+				},
+				async fetchItems(ctx) {
+					const weather = contextValue(ctx, WeatherKey)
+					if (!weather) return []
+					return [
+						{
+							id: `weather-${Date.now()}`,
+							type: "weather",
+							priority: 0.5,
+							timestamp: new Date(),
+							data: { temperature: weather.temperature, condition: weather.condition },
+						},
+					]
+				},
+			}
+
+			const engine = new FeedEngine({ cacheTtlMs: 100 })
+				.register(location)
+				.register(countingWeather)
+
+			engine.start()
+
+			// At 40ms, push a reactive update — this resets the timer
+			await new Promise((resolve) => setTimeout(resolve, 40))
+			const countBeforeUpdate = fetchCount
+			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
+			await new Promise((resolve) => setTimeout(resolve, 20))
+
+			// Reactive update triggered a fetch
+			expect(fetchCount).toBeGreaterThan(countBeforeUpdate)
+			const countAfterUpdate = fetchCount
+
+			// At 100ms from start (60ms after reactive update), the original
+			// timer would have fired, but it was reset. No extra fetch yet.
+			await new Promise((resolve) => setTimeout(resolve, 40))
+			expect(fetchCount).toBe(countAfterUpdate)
+
+			engine.stop()
+		})
+	})
 })

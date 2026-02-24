@@ -16,6 +16,14 @@ export interface FeedResult<TItem extends FeedItem = FeedItem> {
 
 export type FeedSubscriber<TItem extends FeedItem = FeedItem> = (result: FeedResult<TItem>) => void
 
+const DEFAULT_CACHE_TTL_MS = 300_000 // 5 minutes
+const MIN_CACHE_TTL_MS = 10 // prevent spin from zero/negative values
+
+export interface FeedEngineConfig {
+	/** Cache TTL in milliseconds. Default: 300_000 (5 minutes). Minimum: 10. */
+	cacheTtlMs?: number
+}
+
 interface SourceGraph {
 	sources: Map<string, FeedSource>
 	sorted: FeedSource[]
@@ -58,6 +66,29 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 	private subscribers = new Set<FeedSubscriber<TItems>>()
 	private cleanups: Array<() => void> = []
 	private started = false
+
+	private readonly cacheTtlMs: number
+	private cachedResult: FeedResult<TItems> | null = null
+	private cachedAt: number | null = null
+	private refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+	constructor(config?: FeedEngineConfig) {
+		this.cacheTtlMs = Math.max(config?.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS, MIN_CACHE_TTL_MS)
+	}
+
+	/**
+	 * Returns the cached FeedResult if available and not expired.
+	 * Returns null if no refresh has completed or the cache TTL has elapsed.
+	 */
+	lastFeed(): FeedResult<TItems> | null {
+		if (this.cachedResult === null || this.cachedAt === null) {
+			return null
+		}
+		if (Date.now() - this.cachedAt > this.cacheTtlMs) {
+			return null
+		}
+		return this.cachedResult
+	}
 
 	/**
 	 * Registers a FeedSource. Invalidates the cached graph.
@@ -124,7 +155,10 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		this.context = context
 
-		return { context, items: items as TItems[], errors }
+		const result: FeedResult<TItems> = { context, items: items as TItems[], errors }
+		this.updateCache(result)
+
+		return result
 	}
 
 	/**
@@ -138,7 +172,7 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 	}
 
 	/**
-	 * Starts reactive subscriptions on all sources.
+	 * Starts reactive subscriptions on all sources and begins periodic refresh.
 	 * Sources with onContextUpdate will trigger re-computation of dependents.
 	 */
 	start(): void {
@@ -168,13 +202,16 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 				this.cleanups.push(cleanup)
 			}
 		}
+
+		this.scheduleNextRefresh()
 	}
 
 	/**
-	 * Stops all reactive subscriptions.
+	 * Stops all reactive subscriptions and the periodic refresh timer.
 	 */
 	stop(): void {
 		this.started = false
+		this.cancelScheduledRefresh()
 		for (const cleanup of this.cleanups) {
 			cleanup()
 		}
@@ -279,11 +316,14 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		items.sort((a, b) => b.priority - a.priority)
 
-		this.notifySubscribers({
+		const result: FeedResult<TItems> = {
 			context: this.context,
 			items: items as TItems[],
 			errors,
-		})
+		}
+		this.updateCache(result)
+
+		this.notifySubscribers(result)
 	}
 
 	private collectDependents(sourceId: string, graph: SourceGraph): string[] {
@@ -307,11 +347,46 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 		return graph.sorted.filter((s) => result.includes(s.id)).map((s) => s.id)
 	}
 
+	private updateCache(result: FeedResult<TItems>): void {
+		this.cachedResult = result
+		this.cachedAt = Date.now()
+		if (this.started) {
+			this.scheduleNextRefresh()
+		}
+	}
+
+	private scheduleNextRefresh(): void {
+		this.cancelScheduledRefresh()
+		this.refreshTimer = setTimeout(() => {
+			this.refresh()
+				.then((result) => {
+					this.notifySubscribers(result)
+				})
+				.catch(() => {
+					// Periodic refresh errors are non-fatal; schedule next attempt
+					if (this.started) {
+						this.scheduleNextRefresh()
+					}
+				})
+		}, this.cacheTtlMs)
+	}
+
+	private cancelScheduledRefresh(): void {
+		if (this.refreshTimer !== null) {
+			clearTimeout(this.refreshTimer)
+			this.refreshTimer = null
+		}
+	}
+
 	private scheduleRefresh(): void {
 		// Simple immediate refresh for now - could add debouncing later
-		this.refresh().then((result) => {
-			this.notifySubscribers(result)
-		})
+		this.refresh()
+			.then((result) => {
+				this.notifySubscribers(result)
+			})
+			.catch(() => {
+				// Reactive refresh errors are non-fatal
+			})
 	}
 
 	private notifySubscribers(result: FeedResult<TItems>): void {
