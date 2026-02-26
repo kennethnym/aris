@@ -125,7 +125,7 @@ interface FeedSource<TItem extends FeedItem = FeedItem> {
 
 ### Changes to FeedItem
 
-One optional field added.
+Optional fields added for actions, server-driven UI, and LLM slots.
 
 ```typescript
 interface FeedItem<
@@ -140,6 +140,12 @@ interface FeedItem<
 
 	/** Actions the user can take on this item. */
 	actions?: readonly ItemAction[]
+
+	/** Server-driven UI tree rendered by json-render on the client. */
+	ui?: JsonRenderNode
+
+	/** Named slots for LLM-fillable content. See architecture-draft.md. */
+	slots?: Record<string, Slot>
 }
 ```
 
@@ -222,6 +228,25 @@ class SpotifySource implements FeedSource<SpotifyFeedItem> {
 					{ actionId: "skip-track" },
 					{ actionId: "like-track", params: { trackId: track.id } },
 				],
+				ui: {
+					type: "View",
+					className: "flex-row items-center p-3 gap-3 bg-white dark:bg-black rounded-xl",
+					children: [
+						{
+							type: "Image",
+							source: { uri: track.albumArt },
+							className: "w-12 h-12 rounded-lg",
+						},
+						{
+							type: "View",
+							className: "flex-1",
+							children: [
+								{ type: "Text", className: "font-semibold text-black dark:text-white", text: track.name },
+								{ type: "Text", className: "text-sm text-gray-500 dark:text-gray-400", text: track.artist },
+							],
+						},
+					],
+				},
 			},
 		]
 	}
@@ -236,6 +261,8 @@ class SpotifySource implements FeedSource<SpotifyFeedItem> {
 4. `FeedSource.listActions()` is a required method returning `Record<string, ActionDefinition>` (empty record if no actions)
 5. `FeedSource.executeAction()` is a required method (no-op for sources without actions)
 6. `FeedItem.actions` is an optional readonly array of `ItemAction`
+6b. `FeedItem.ui` is an optional json-render tree describing server-driven UI
+6c. `FeedItem.slots` is an optional record of named LLM-fillable slots
 7. `FeedEngine.executeAction()` routes to correct source, returns `ActionResult`
 8. `FeedEngine.listActions()` aggregates actions from all sources
 9. Existing tests pass unchanged (all changes are additive)
