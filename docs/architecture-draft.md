@@ -16,8 +16,8 @@ Examples of feed items:
 ## Design Principles
 
 1. **Extensibility**: The core must support different data sources, including third-party sources.
-2. **Separation of concerns**: Core handles data only. UI rendering is a separate system.
-3. **Parallel execution**: Sources run in parallel; no inter-source dependencies.
+2. **Separation of concerns**: Core handles data and UI description. The client is a thin renderer.
+3. **Dependency graph**: Sources declare dependencies on other sources. The engine resolves the graph and runs independent sources in parallel.
 4. **Graceful degradation**: Failed sources are skipped; partial results are returned.
 
 ## Architecture
@@ -25,26 +25,28 @@ Examples of feed items:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Backend                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────┐  │
-│  │  aris-core  │    │   Sources   │    │  UI Registry    │  │
-│  │             │    │  (plugins)  │    │  (schemas from  │  │
-│  │ - Reconciler│◄───│ - Calendar  │    │   third parties)│  │
-│  │ - Context   │    │ - Weather   │    │                 │  │
-│  │ - FeedItem  │    │ - Spotify   │    │                 │  │
-│  └─────────────┘    └─────────────┘    └─────────────────┘  │
-│         │                                      │             │
-│         ▼                                      ▼             │
-│    Feed (data only)                    UI Schemas (JSON)     │
+│  ┌─────────────┐    ┌─────────────┐                         │
+│  │  aris-core  │    │   Sources   │                         │
+│  │             │    │  (plugins)  │                         │
+│  │ - FeedEngine│◄───│ - Calendar  │                         │
+│  │ - Context   │    │ - Weather   │                         │
+│  │ - FeedItem  │    │ - TfL       │                         │
+│  │ - Actions   │    │ - Spotify   │                         │
+│  └─────────────┘    └─────────────┘                         │
+│         │                                                    │
+│         ▼                                                    │
+│    Feed items (data + ui trees + slots)                      │
 └─────────────────────────────────────────────────────────────┘
-                    │                           │
-                    ▼                           ▼
+                    │
+                    ▼ (WebSocket / JSON-RPC)
 ┌─────────────────────────────────────────────────────────────┐
-│                        Frontend                              │
+│                    Client (React Native)                      │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Renderer                                             │   │
-│  │  - Receives feed items                                │   │
-│  │  - Fetches UI schema by item type                     │   │
-│  │  - Renders using json-render or similar               │   │
+│  │  json-render + twrnc component map                    │   │
+│  │  - Receives feed items with ui trees                  │   │
+│  │  - Renders using registered RN components + twrnc     │   │
+│  │  - User interactions trigger source actions           │   │
+│  │  - Bespoke native components for rich interactions    │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -54,15 +56,16 @@ Examples of feed items:
 The core is responsible for:
 
 - Defining the context and feed item interfaces
-- Providing a reconciler that orchestrates data sources
+- Providing a `FeedEngine` that orchestrates sources via a dependency graph
 - Returning a flat list of prioritized feed items
+- Routing action execution to the correct source
 
 ### Key Concepts
 
-- **Context**: Time and location (with accuracy) passed to all sources
-- **FeedItem**: Has an ID (source-generated, stable), type, priority, timestamp, and JSON-serializable data
-- **DataSource**: Interface that third parties implement to provide feed items
-- **Reconciler**: Orchestrates sources, runs them in parallel, returns items and any errors
+- **Context**: Time and location (with accuracy) passed to all sources. Sources can contribute to context (e.g., location source provides coordinates, weather source provides conditions).
+- **FeedItem**: Has an ID (source-generated, stable), type, timestamp, JSON-serializable data, optional actions, an optional `ui` tree, and optional `slots` for LLM-fillable content.
+- **FeedSource**: Interface that first and third parties implement to provide context, feed items, and actions. Uses reverse-domain IDs (e.g., `aris.weather`, `com.spotify`).
+- **FeedEngine**: Orchestrates sources respecting their dependency graph, runs independent sources in parallel, returns items and any errors. Routes action execution to the correct source.
 
 ## Data Sources
 
@@ -71,10 +74,13 @@ Key decisions:
 - Sources receive the full context and decide internally what to use
 - Each source returns a single item type (e.g., separate "Calendar Source" and "Location Suggestion Source" rather than a combined "Google Source")
 - Sources live in separate packages, not in the core
+- Sources declare dependencies on other sources (e.g., weather depends on location)
 - Sources are responsible for:
   - Transforming their domain data into feed items
   - Assigning priority based on domain logic (e.g., "event starting in 10 minutes" = high priority)
   - Returning empty arrays when nothing is relevant
+  - Providing a `ui` tree for each feed item
+  - Declaring and handling actions (e.g., RSVP, complete task, play/pause)
 
 ### Configuration
 
@@ -83,26 +89,39 @@ Configuration is passed at source registration time, not per reconcile call. Sou
 ## Feed Output
 
 - Flat list of `FeedItem` objects
-- No UI information (no icons, card types, etc.)
+- Items carry data, an optional `ui` field describing their layout, and optional `slots` for LLM enhancement
 - Items are a discriminated union by `type` field
-- Reconciler sorts by priority; can act as tiebreaker
 
-## UI Rendering (Separate from Core)
+## UI Rendering: Server-Driven UI
 
-The core does not handle UI. For extensible third-party UI:
+The UI for feed items is **server-driven**. Sources describe how their items look using a JSON tree (the `ui` field on `FeedItem`). The client renders these trees using [json-render](https://json-render.dev/) with a registered set of React Native components styled via [twrnc](https://github.com/jaredh159/tailwind-react-native-classnames).
 
-1. Third-party apps register their UI schemas through the backend (UI Registry)
-2. Frontend fetches UI schemas from the backend
-3. Frontend matches feed items to schemas by `type` and renders accordingly
+### How it works
 
-This approach:
+1. Sources return feed items with a `ui` field — a JSON tree describing the card layout using Tailwind class strings.
+2. The client passes a component map to json-render. Each component wraps a React Native primitive and resolves `className` via twrnc.
+3. json-render walks the tree and renders native components. twrnc parses Tailwind classes at runtime — no build step, arbitrary values work.
+4. User interactions (tap, etc.) map to source actions via the `actions` field on `FeedItem`. The client sends action requests to the backend, which routes them to the correct source via `FeedEngine.executeAction()`.
 
-- Keeps the core focused on data
-- Works across platforms (web, React Native)
-- Avoids the need for third parties to inject code into the app
-- Uses a json-render style approach for declarative UI from JSON schemas
+### Styling
 
-Reference: https://github.com/vercel-labs/json-render
+- Sources use Tailwind CSS class strings via the `className` prop (e.g., `"p-4 bg-white dark:bg-black rounded-xl"`).
+- twrnc resolves classes to React Native style objects at runtime. Supports arbitrary values (`mt-[31px]`, `bg-[#eaeaea]`), dark mode (`dark:bg-black`), and platform prefixes (`ios:pt-4 android:pt-2`).
+- Custom colors and spacing are configured via `tailwind.config.js` on the client.
+- No compile-time constraint — all styles resolve at runtime.
+
+### Two tiers of UI
+
+- **Server-driven (default):** Any source can return a `ui` tree. Covers most cards — weather, tasks, alerts, package tracking, news, etc. Simple interactions go through source actions. This is the default path for both first-party and third-party sources.
+- **Bespoke native:** For cards that need rich client interaction (gestures, animations, real-time updates), a native React Native component is registered in the json-render component map and referenced by type. Third parties that need this level of richness work with the ARIS team to get it integrated.
+
+### Why server-driven
+
+- Feed items are inherently server-driven — the data comes from sources on the backend. Attaching the layout alongside the data is a natural extension.
+- Card designs can be updated without shipping an app update.
+- Third-party sources can ship their own UI without bundling anything new into the app.
+
+Reference: https://json-render.dev/
 
 ## Feed Items with UI and Slots
 
@@ -384,9 +403,9 @@ function mergeEnhancement(
 
 ## Open Questions
 
-- Exact schema format for UI registry
-- How third parties authenticate/register their sources and UI schemas
-- JsonRenderNode type definition and component vocabulary
-- How synthetic items define their UI (full json-render tree vs. registered schema)
+- How third parties authenticate/register their sources
+- Exact set of React Native components exposed in the json-render component map
+- Validation/sandboxing of third-party ui trees
+- How synthetic items define their UI (full json-render tree vs. registered component)
 - Should slots support rich content (json-render nodes) in the future, or stay text-only?
 - How to handle slot content that references other items (e.g., "your dinner at The Ivy" linking to the calendar card)
