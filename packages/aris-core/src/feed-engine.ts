@@ -306,6 +306,10 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 				const enhancement = await processor(currentItems)
 
 				if (enhancement.additionalItems?.length) {
+					// Post-processors operate on FeedItem[] without knowledge of TItems.
+					// Additional items are merged untyped — this is intentional. The
+					// processor contract is "FeedItem in, FeedItem out"; type narrowing
+					// is the caller's responsibility when consuming FeedResult.
 					currentItems = [...currentItems, ...(enhancement.additionalItems as TItems[])]
 				}
 
