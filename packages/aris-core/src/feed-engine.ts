@@ -331,7 +331,16 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 			}
 		}
 
-		return { items: currentItems, groupedItems: allGroupedItems, errors: allErrors }
+		// Remove stale item IDs from groups and drop empty groups
+		const itemIds = new Set(currentItems.map((item) => item.id))
+		const validGroups = allGroupedItems
+			.map((group) => ({
+				...group,
+				itemIds: group.itemIds.filter((id) => itemIds.has(id)),
+			}))
+			.filter((group) => group.itemIds.length > 0)
+
+		return { items: currentItems, groupedItems: validGroups, errors: allErrors }
 	}
 
 	private ensureGraph(): SourceGraph {

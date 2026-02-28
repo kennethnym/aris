@@ -173,6 +173,32 @@ describe("FeedPostProcessor", () => {
 			])
 		})
 
+		test("stale item IDs are removed from groups after suppression", async () => {
+			const engine = new FeedEngine()
+				.register(
+					createCalendarSource([calendarItem("c1", "Meeting A"), calendarItem("c2", "Meeting B")]),
+				)
+				.registerPostProcessor(async () => ({
+					groupedItems: [{ itemIds: ["c1", "c2"], summary: "Afternoon" }],
+				}))
+				.registerPostProcessor(async () => ({ suppress: ["c1"] }))
+
+			const result = await engine.refresh()
+			expect(result.groupedItems).toEqual([{ itemIds: ["c2"], summary: "Afternoon" }])
+		})
+
+		test("groups with all items suppressed are dropped", async () => {
+			const engine = new FeedEngine()
+				.register(createCalendarSource([calendarItem("c1", "Meeting A")]))
+				.registerPostProcessor(async () => ({
+					groupedItems: [{ itemIds: ["c1"], summary: "Solo" }],
+				}))
+				.registerPostProcessor(async () => ({ suppress: ["c1"] }))
+
+			const result = await engine.refresh()
+			expect(result.groupedItems).toBeUndefined()
+		})
+
 		test("groupedItems is omitted when no processors produce groups", async () => {
 			const engine = new FeedEngine()
 				.register(createWeatherSource([weatherItem("w1", 20)]))
