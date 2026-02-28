@@ -1,6 +1,6 @@
 import type { Context } from "@aris/core"
 
-import { contextValue } from "@aris/core"
+import { TimeRelevance, contextValue } from "@aris/core"
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -15,7 +15,7 @@ import type {
 } from "./types.ts"
 
 import { CalendarKey } from "./calendar-context.ts"
-import { CalendarSource, computePriority } from "./calendar-source.ts"
+import { CalendarSource, computeSignals } from "./calendar-source.ts"
 
 function loadFixture(name: string): string {
 	return readFileSync(join(import.meta.dir, "..", "fixtures", name), "utf-8")
@@ -185,7 +185,7 @@ describe("CalendarSource", () => {
 		expect(items[0]!.timestamp).toEqual(now)
 	})
 
-	test("assigns priority based on event proximity", async () => {
+	test("assigns signals based on event proximity", async () => {
 		const objects: Record<string, CalendarDAVObject[]> = {
 			"/cal/work": [
 				{ url: "/cal/work/event1.ics", data: loadFixture("single-event.ics") },
@@ -203,8 +203,10 @@ describe("CalendarSource", () => {
 		const standup = items.find((i) => i.data.title === "Team Standup")
 		const holiday = items.find((i) => i.data.title === "Company Holiday")
 
-		expect(standup!.priority).toBe(0.7) // within 2 hours
-		expect(holiday!.priority).toBe(0.3) // all-day
+		expect(standup!.signals!.urgency).toBe(0.7) // within 2 hours
+		expect(standup!.signals!.timeRelevance).toBe(TimeRelevance.Upcoming)
+		expect(holiday!.signals!.urgency).toBe(0.3) // all-day
+		expect(holiday!.signals!.timeRelevance).toBe(TimeRelevance.Ambient)
 	})
 
 	test("handles calendar with non-string displayName", async () => {
@@ -378,7 +380,7 @@ describe("CalendarSource.fetchContext", () => {
 	})
 })
 
-describe("computePriority", () => {
+describe("computeSignals", () => {
 	const now = new Date("2026-01-15T12:00:00Z")
 
 	function makeEvent(overrides: Partial<CalendarEventData>): CalendarEventData {
@@ -401,73 +403,83 @@ describe("computePriority", () => {
 		}
 	}
 
-	test("all-day events get priority 0.3", () => {
+	test("all-day events get urgency 0.3 and ambient relevance", () => {
 		const event = makeEvent({ isAllDay: true })
-		expect(computePriority(event, now)).toBe(0.3)
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.3)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Ambient)
 	})
 
-	test("events starting within 30 minutes get priority 0.9", () => {
+	test("events starting within 30 minutes get urgency 0.9 and imminent relevance", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T12:20:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.9)
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.9)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Imminent)
 	})
 
-	test("events starting exactly at 30 minutes get priority 0.9", () => {
+	test("events starting exactly at 30 minutes get urgency 0.9", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T12:30:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.9)
+		expect(computeSignals(event, now).urgency).toBe(0.9)
 	})
 
-	test("events starting within 2 hours get priority 0.7", () => {
+	test("events starting within 2 hours get urgency 0.7 and upcoming relevance", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T13:00:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.7)
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.7)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Upcoming)
 	})
 
-	test("events later today get priority 0.5", () => {
+	test("events later today get urgency 0.5", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T20:00:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.5)
+		expect(computeSignals(event, now).urgency).toBe(0.5)
 	})
 
-	test("in-progress events get priority 0.8", () => {
+	test("in-progress events get urgency 0.8 and imminent relevance", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T11:00:00Z"),
 			endDate: new Date("2026-01-15T13:00:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.8)
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.8)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Imminent)
 	})
 
-	test("fully past events get priority 0.2", () => {
+	test("fully past events get urgency 0.2 and ambient relevance", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-15T09:00:00Z"),
 			endDate: new Date("2026-01-15T10:00:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.2)
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.2)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Ambient)
 	})
 
-	test("events on future days get priority 0.2", () => {
+	test("events on future days get urgency 0.2", () => {
 		const event = makeEvent({
 			startDate: new Date("2026-01-16T10:00:00Z"),
 		})
-		expect(computePriority(event, now)).toBe(0.2)
+		expect(computeSignals(event, now).urgency).toBe(0.2)
 	})
 
-	test("priority boundaries are correct", () => {
+	test("urgency boundaries are correct", () => {
 		// 31 minutes from now should be 0.7 (within 2 hours, not within 30 min)
 		const event31min = makeEvent({
 			startDate: new Date("2026-01-15T12:31:00Z"),
 		})
-		expect(computePriority(event31min, now)).toBe(0.7)
+		expect(computeSignals(event31min, now).urgency).toBe(0.7)
 
 		// 2 hours 1 minute from now should be 0.5 (later today, not within 2 hours)
 		const event2h1m = makeEvent({
 			startDate: new Date("2026-01-15T14:01:00Z"),
 		})
-		expect(computePriority(event2h1m, now)).toBe(0.5)
+		expect(computeSignals(event2h1m, now).urgency).toBe(0.5)
 	})
 })

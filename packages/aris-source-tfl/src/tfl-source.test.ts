@@ -184,7 +184,8 @@ describe("TflSource", () => {
 				expect(typeof item.id).toBe("string")
 				expect(item.id).toMatch(/^tfl-alert-/)
 				expect(item.type).toBe("tfl-alert")
-				expect(typeof item.priority).toBe("number")
+				expect(item.signals).toBeDefined()
+				expect(typeof item.signals!.urgency).toBe("number")
 				expect(item.timestamp).toBeInstanceOf(Date)
 			}
 		})
@@ -220,29 +221,29 @@ describe("TflSource", () => {
 			expect(uniqueIds.size).toBe(ids.length)
 		})
 
-		test("feed items are sorted by priority descending", async () => {
+		test("feed items are sorted by urgency descending", async () => {
 			const source = new TflSource({ client: api })
 			const items = await source.fetchItems(createContext())
 
 			for (let i = 1; i < items.length; i++) {
 				const prev = items[i - 1]!
 				const curr = items[i]!
-				expect(prev.priority).toBeGreaterThanOrEqual(curr.priority)
+				expect(prev.signals!.urgency).toBeGreaterThanOrEqual(curr.signals!.urgency!)
 			}
 		})
 
-		test("priority values match severity levels", async () => {
+		test("urgency values match severity levels", async () => {
 			const source = new TflSource({ client: api })
 			const items = await source.fetchItems(createContext())
 
-			const severityPriority: Record<string, number> = {
+			const severityUrgency: Record<string, number> = {
 				closure: 1.0,
 				"major-delays": 0.8,
 				"minor-delays": 0.6,
 			}
 
 			for (const item of items) {
-				expect(item.priority).toBe(severityPriority[item.data.severity]!)
+				expect(item.signals!.urgency).toBe(severityUrgency[item.data.severity]!)
 			}
 		})
 
@@ -316,9 +317,7 @@ describe("TflSource", () => {
 		test("executeAction throws on invalid input", async () => {
 			const source = new TflSource({ client: api })
 
-			await expect(
-				source.executeAction("set-lines-of-interest", "not-an-array"),
-			).rejects.toThrow()
+			await expect(source.executeAction("set-lines-of-interest", "not-an-array")).rejects.toThrow()
 		})
 
 		test("executeAction throws for unknown action", async () => {

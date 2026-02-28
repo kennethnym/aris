@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import type { ActionDefinition, Context, ContextKey, FeedItem, FeedSource } from "./index"
 
 import { FeedEngine } from "./feed-engine"
-import { UnknownActionError, contextKey, contextValue } from "./index"
+import { TimeRelevance, UnknownActionError, contextKey, contextValue } from "./index"
 
 // No-op action methods for test sources
 const noActions = {
@@ -100,12 +100,12 @@ function createWeatherSource(
 				{
 					id: `weather-${Date.now()}`,
 					type: "weather",
-					priority: 0.5,
 					timestamp: new Date(),
 					data: {
 						temperature: weather.temperature,
 						condition: weather.condition,
 					},
+					signals: { urgency: 0.5, timeRelevance: TimeRelevance.Ambient },
 				},
 			]
 		},
@@ -131,9 +131,9 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 					{
 						id: "alert-storm",
 						type: "alert",
-						priority: 1.0,
 						timestamp: new Date(),
 						data: { message: "Storm warning!" },
+						signals: { urgency: 1.0, timeRelevance: TimeRelevance.Imminent },
 					},
 				]
 			}
@@ -322,7 +322,7 @@ describe("FeedEngine", () => {
 			expect(items[0]!.type).toBe("weather")
 		})
 
-		test("sorts items by priority descending", async () => {
+		test("returns items in source graph order (no engine-level sorting)", async () => {
 			const location = createLocationSource()
 			location.simulateUpdate({ lat: 51.5, lng: -0.1 })
 
@@ -338,8 +338,12 @@ describe("FeedEngine", () => {
 			const { items } = await engine.refresh()
 
 			expect(items).toHaveLength(2)
-			expect(items[0]!.type).toBe("alert") // priority 1.0
-			expect(items[1]!.type).toBe("weather") // priority 0.5
+			// Items returned in topological order (weather before alert)
+			expect(items[0]!.type).toBe("weather")
+			expect(items[1]!.type).toBe("alert")
+			// Signals are preserved for post-processors to consume
+			expect(items[0]!.signals?.urgency).toBe(0.5)
+			expect(items[1]!.signals?.urgency).toBe(1.0)
 		})
 
 		test("handles missing upstream context gracefully", async () => {

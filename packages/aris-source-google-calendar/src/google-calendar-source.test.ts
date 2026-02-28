@@ -1,4 +1,4 @@
-import { contextValue, type Context } from "@aris/core"
+import { TimeRelevance, contextValue, type Context } from "@aris/core"
 import { describe, expect, test } from "bun:test"
 
 import type { ApiCalendarEvent, GoogleCalendarClient, ListEventsOptions } from "./types"
@@ -81,16 +81,17 @@ describe("GoogleCalendarSource", () => {
 			expect(allDayItems.length).toBe(1)
 		})
 
-		test("ongoing events get highest priority (1.0)", async () => {
+		test("ongoing events get highest urgency (1.0)", async () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
 			const items = await source.fetchItems(createContext())
 
 			const ongoing = items.find((i) => i.data.eventId === "evt-ongoing")
 			expect(ongoing).toBeDefined()
-			expect(ongoing!.priority).toBe(1.0)
+			expect(ongoing!.signals!.urgency).toBe(1.0)
+			expect(ongoing!.signals!.timeRelevance).toBe(TimeRelevance.Imminent)
 		})
 
-		test("upcoming events get higher priority when sooner", async () => {
+		test("upcoming events get higher urgency when sooner", async () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
 			const items = await source.fetchItems(createContext())
 
@@ -99,16 +100,17 @@ describe("GoogleCalendarSource", () => {
 
 			expect(soon).toBeDefined()
 			expect(later).toBeDefined()
-			expect(soon!.priority).toBeGreaterThan(later!.priority)
+			expect(soon!.signals!.urgency).toBeGreaterThan(later!.signals!.urgency!)
 		})
 
-		test("all-day events get flat priority (0.4)", async () => {
+		test("all-day events get flat urgency (0.4)", async () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
 			const items = await source.fetchItems(createContext())
 
 			const allDay = items.find((i) => i.data.eventId === "evt-allday")
 			expect(allDay).toBeDefined()
-			expect(allDay!.priority).toBe(0.4)
+			expect(allDay!.signals!.urgency).toBe(0.4)
+			expect(allDay!.signals!.timeRelevance).toBe(TimeRelevance.Ambient)
 		})
 
 		test("generates unique IDs for each item", async () => {
@@ -280,7 +282,7 @@ describe("GoogleCalendarSource", () => {
 		})
 	})
 
-	describe("priority ordering", () => {
+	describe("urgency ordering", () => {
 		test("ongoing > upcoming > all-day", async () => {
 			const source = new GoogleCalendarSource({ client: defaultMockClient() })
 			const items = await source.fetchItems(createContext())
@@ -289,8 +291,8 @@ describe("GoogleCalendarSource", () => {
 			const upcoming = items.find((i) => i.data.eventId === "evt-soon")!
 			const allDay = items.find((i) => i.data.eventId === "evt-allday")!
 
-			expect(ongoing.priority).toBeGreaterThan(upcoming.priority)
-			expect(upcoming.priority).toBeGreaterThan(allDay.priority)
+			expect(ongoing.signals!.urgency).toBeGreaterThan(upcoming.signals!.urgency!)
+			expect(upcoming.signals!.urgency).toBeGreaterThan(allDay.signals!.urgency!)
 		})
 	})
 })
