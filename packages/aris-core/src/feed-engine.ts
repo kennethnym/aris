@@ -333,12 +333,13 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		// Remove stale item IDs from groups and drop empty groups
 		const itemIds = new Set(currentItems.map((item) => item.id))
-		const validGroups = allGroupedItems
-			.map((group) => ({
-				...group,
-				itemIds: group.itemIds.filter((id) => itemIds.has(id)),
-			}))
-			.filter((group) => group.itemIds.length > 0)
+		const validGroups = allGroupedItems.reduce<ItemGroup[]>((acc, group) => {
+			const ids = group.itemIds.filter((id) => itemIds.has(id))
+			if (ids.length > 0) {
+				acc.push({ ...group, itemIds: ids })
+			}
+			return acc
+		}, [])
 
 		return { items: currentItems, groupedItems: validGroups, errors: allErrors }
 	}
