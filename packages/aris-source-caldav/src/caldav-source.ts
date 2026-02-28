@@ -75,6 +75,7 @@ export class CalDavSource implements FeedSource<CalDavFeedItem> {
 	private readonly injectedClient: CalDavDAVClient | null
 	private clientPromise: Promise<CalDavDAVClient> | null = null
 	private cachedEvents: { time: Date; events: CalDavEventData[] } | null = null
+	private pendingFetch: { time: Date; promise: Promise<CalDavEventData[]> } | null = null
 
 	constructor(options: CalDavSourceOptions) {
 		this.options = options
@@ -127,11 +128,27 @@ export class CalDavSource implements FeedSource<CalDavFeedItem> {
 		return events.map((event) => createFeedItem(event, now))
 	}
 
-	private async fetchEvents(context: Context): Promise<CalDavEventData[]> {
+	private fetchEvents(context: Context): Promise<CalDavEventData[]> {
 		if (this.cachedEvents && this.cachedEvents.time === context.time) {
-			return this.cachedEvents.events
+			return Promise.resolve(this.cachedEvents.events)
 		}
 
+		// Deduplicate concurrent fetches for the same context.time reference
+		if (this.pendingFetch && this.pendingFetch.time === context.time) {
+			return this.pendingFetch.promise
+		}
+
+		const promise = this.doFetchEvents(context).finally(() => {
+			if (this.pendingFetch?.promise === promise) {
+				this.pendingFetch = null
+			}
+		})
+
+		this.pendingFetch = { time: context.time, promise }
+		return promise
+	}
+
+	private async doFetchEvents(context: Context): Promise<CalDavEventData[]> {
 		const client = await this.connectClient()
 		const calendars = await client.fetchCalendars()
 
