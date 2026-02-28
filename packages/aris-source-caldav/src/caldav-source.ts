@@ -4,6 +4,7 @@ import { TimeRelevance, UnknownActionError } from "@aris/core"
 import { DAVClient } from "tsdav"
 
 import type { CalDavDAVClient, CalDavEventData, CalDavFeedItem } from "./types.ts"
+import { CalDavEventStatus } from "./types.ts"
 
 import { CalDavCalendarKey, type CalendarContext } from "./calendar-context.ts"
 import { parseICalEvents } from "./ical-parser.ts"
@@ -106,9 +107,10 @@ export class CalDavSource implements FeedSource<CalDavFeedItem> {
 		}
 
 		const now = context.time
-		const inProgress = events.filter((e) => !e.isAllDay && e.startDate <= now && e.endDate > now)
+		const active = events.filter((e) => e.status !== CalDavEventStatus.Cancelled)
+		const inProgress = active.filter((e) => !e.isAllDay && e.startDate <= now && e.endDate > now)
 
-		const upcoming = events
+		const upcoming = active
 			.filter((e) => !e.isAllDay && e.startDate > now)
 			.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
 
@@ -125,7 +127,7 @@ export class CalDavSource implements FeedSource<CalDavFeedItem> {
 	async fetchItems(context: Context): Promise<CalDavFeedItem[]> {
 		const now = context.time
 		const events = await this.fetchEvents(context)
-		return events.map((event) => createFeedItem(event, now))
+		return events.map((event) => createFeedItem(event, now, this.timeZone))
 	}
 
 	private fetchEvents(context: Context): Promise<CalDavEventData[]> {
@@ -290,7 +292,15 @@ function startOfDay(date: Date, timeZone?: string): Date {
 	return new Date(Date.UTC(year, month - 1, day) - offsetMs)
 }
 
-export function computeSignals(event: CalDavEventData, now: Date): FeedItemSignals {
+export function computeSignals(
+	event: CalDavEventData,
+	now: Date,
+	timeZone?: string,
+): FeedItemSignals {
+	if (event.status === CalDavEventStatus.Cancelled) {
+		return { urgency: 0.1, timeRelevance: TimeRelevance.Ambient }
+	}
+
 	if (event.isAllDay) {
 		return { urgency: 0.3, timeRelevance: TimeRelevance.Ambient }
 	}
@@ -315,11 +325,9 @@ export function computeSignals(event: CalDavEventData, now: Date): FeedItemSigna
 		return { urgency: 0.7, timeRelevance: TimeRelevance.Upcoming }
 	}
 
-	// Later today
-	const startOfDay = new Date(now)
-	startOfDay.setUTCHours(0, 0, 0, 0)
-	const endOfDay = new Date(startOfDay)
-	endOfDay.setUTCDate(endOfDay.getUTCDate() + 1)
+	// Later today (using local day boundary when timeZone is set)
+	const todayStart = startOfDay(now, timeZone)
+	const endOfDay = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000)
 
 	if (event.startDate.getTime() < endOfDay.getTime()) {
 		return { urgency: 0.5, timeRelevance: TimeRelevance.Upcoming }
@@ -329,12 +337,12 @@ export function computeSignals(event: CalDavEventData, now: Date): FeedItemSigna
 	return { urgency: 0.2, timeRelevance: TimeRelevance.Ambient }
 }
 
-function createFeedItem(event: CalDavEventData, now: Date): CalDavFeedItem {
+function createFeedItem(event: CalDavEventData, now: Date, timeZone?: string): CalDavFeedItem {
 	return {
 		id: `caldav-event-${event.uid}${event.recurrenceId ? `-${event.recurrenceId}` : ""}`,
 		type: "caldav-event",
 		timestamp: now,
 		data: event,
-		signals: computeSignals(event, now),
+		signals: computeSignals(event, now, timeZone),
 	}
 }

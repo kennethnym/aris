@@ -479,4 +479,29 @@ describe("computeSignals", () => {
 		})
 		expect(computeSignals(event2h1m, now).urgency).toBe(0.5)
 	})
+
+	test("cancelled events get urgency 0.1 regardless of timing", () => {
+		const event = makeEvent({
+			status: "cancelled",
+			startDate: new Date("2026-01-15T12:20:00Z"), // would be 0.9 if not cancelled
+		})
+		const signals = computeSignals(event, now)
+		expect(signals.urgency).toBe(0.1)
+		expect(signals.timeRelevance).toBe(TimeRelevance.Ambient)
+	})
+
+	test("uses timezone for 'later today' boundary", () => {
+		// now = 2026-01-15T12:00:00Z = 2026-01-15T21:00:00 JST (UTC+9)
+		// event at 2026-01-15T15:30:00Z = 2026-01-16T00:30:00 JST — next day in JST
+		const event = makeEvent({
+			startDate: new Date("2026-01-15T15:30:00Z"),
+		})
+
+		// Without timezone: UTC day ends at 2026-01-16T00:00:00Z, event is before that → "later today"
+		expect(computeSignals(event, now).urgency).toBe(0.5)
+
+		// With Asia/Tokyo: local day ends at 2026-01-15T15:00:00Z (midnight Jan 16 JST),
+		// event is after that → "future days"
+		expect(computeSignals(event, now, "Asia/Tokyo").urgency).toBe(0.2)
+	})
 })
