@@ -1,6 +1,7 @@
 import type { ActionDefinition } from "./action"
 import type { Context } from "./context"
 import type { FeedItem } from "./feed"
+import type { FeedPostProcessor, ItemGroup } from "./feed-post-processor"
 import type { FeedSource } from "./feed-source"
 
 export interface SourceError {
@@ -12,6 +13,8 @@ export interface FeedResult<TItem extends FeedItem = FeedItem> {
 	context: Context
 	items: TItem[]
 	errors: SourceError[]
+	/** Item groups produced by post-processors */
+	groupedItems?: ItemGroup[]
 }
 
 export type FeedSubscriber<TItem extends FeedItem = FeedItem> = (result: FeedResult<TItem>) => void
@@ -66,6 +69,7 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 	private subscribers = new Set<FeedSubscriber<TItems>>()
 	private cleanups: Array<() => void> = []
 	private started = false
+	private postProcessors: FeedPostProcessor[] = []
 
 	private readonly cacheTtlMs: number
 	private cachedResult: FeedResult<TItems> | null = null
@@ -105,6 +109,23 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 	unregister(sourceId: string): this {
 		this.sources.delete(sourceId)
 		this.graph = null
+		return this
+	}
+
+	/**
+	 * Registers a post-processor. Processors run in registration order
+	 * after items are collected, on every update path.
+	 */
+	registerPostProcessor(processor: FeedPostProcessor): this {
+		this.postProcessors.push(processor)
+		return this
+	}
+
+	/**
+	 * Unregisters a post-processor by reference.
+	 */
+	unregisterPostProcessor(processor: FeedPostProcessor): this {
+		this.postProcessors = this.postProcessors.filter((p) => p !== processor)
 		return this
 	}
 
@@ -152,7 +173,18 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 
 		this.context = context
 
-		const result: FeedResult<TItems> = { context, items: items as TItems[], errors }
+		const {
+			items: processedItems,
+			groupedItems,
+			errors: postProcessorErrors,
+		} = await this.applyPostProcessors(items as TItems[], errors)
+
+		const result: FeedResult<TItems> = {
+			context,
+			items: processedItems,
+			errors: postProcessorErrors,
+			...(groupedItems.length > 0 ? { groupedItems } : {}),
+		}
 		this.updateCache(result)
 
 		return result
@@ -260,6 +292,44 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 		return actions
 	}
 
+	private async applyPostProcessors(
+		items: TItems[],
+		errors: SourceError[],
+	): Promise<{ items: TItems[]; groupedItems: ItemGroup[]; errors: SourceError[] }> {
+		let currentItems = items
+		const allGroupedItems: ItemGroup[] = []
+		const allErrors = [...errors]
+
+		for (const processor of this.postProcessors) {
+			const snapshot = currentItems
+			try {
+				const enhancement = await processor(currentItems)
+
+				if (enhancement.additionalItems?.length) {
+					currentItems = [...currentItems, ...(enhancement.additionalItems as TItems[])]
+				}
+
+				if (enhancement.suppress?.length) {
+					const suppressSet = new Set(enhancement.suppress)
+					currentItems = currentItems.filter((item) => !suppressSet.has(item.id))
+				}
+
+				if (enhancement.groupedItems?.length) {
+					allGroupedItems.push(...enhancement.groupedItems)
+				}
+			} catch (err) {
+				const sourceId = processor.name || "anonymous"
+				allErrors.push({
+					sourceId,
+					error: err instanceof Error ? err : new Error(String(err)),
+				})
+				currentItems = snapshot
+			}
+		}
+
+		return { items: currentItems, groupedItems: allGroupedItems, errors: allErrors }
+	}
+
 	private ensureGraph(): SourceGraph {
 		if (!this.graph) {
 			this.graph = buildGraph(Array.from(this.sources.values()))
@@ -311,10 +381,17 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 			}
 		}
 
+		const {
+			items: processedItems,
+			groupedItems,
+			errors: postProcessorErrors,
+		} = await this.applyPostProcessors(items as TItems[], errors)
+
 		const result: FeedResult<TItems> = {
 			context: this.context,
-			items: items as TItems[],
-			errors,
+			items: processedItems,
+			errors: postProcessorErrors,
+			...(groupedItems.length > 0 ? { groupedItems } : {}),
 		}
 		this.updateCache(result)
 

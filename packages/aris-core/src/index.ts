@@ -13,6 +13,9 @@ export { TimeRelevance } from "./feed"
 // Feed Source
 export type { FeedSource } from "./feed-source"
 
+// Feed Post-Processor
+export type { FeedEnhancement, FeedPostProcessor, ItemGroup } from "./feed-post-processor"
+
 // Feed Engine
 export type { FeedEngineConfig, FeedResult, FeedSubscriber, SourceError } from "./feed-engine"
 export { FeedEngine } from "./feed-engine"
