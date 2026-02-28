@@ -18,9 +18,9 @@ import type { FeedItem } from "./feed"
  *     return [{
  *       id: `weather-${Date.now()}`,
  *       type: this.type,
- *       priority: 0.5,
  *       timestamp: context.time,
  *       data: { temp: data.temperature },
+ *       signals: { urgency: 0.5, timeRelevance: "ambient" },
  *     }]
  *   }
  * }

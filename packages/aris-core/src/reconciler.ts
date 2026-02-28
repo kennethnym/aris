@@ -72,8 +72,6 @@ export class Reconciler<TItems extends FeedItem = never> {
 			}
 		})
 
-		items.sort((a, b) => b.priority - a.priority)
-
 		return { items, errors } as ReconcileResult<TItems>
 	}
 }

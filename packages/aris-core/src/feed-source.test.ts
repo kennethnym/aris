@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { ActionDefinition, Context, ContextKey, FeedItem, FeedSource } from "./index"
 
-import { UnknownActionError, contextKey, contextValue } from "./index"
+import { TimeRelevance, UnknownActionError, contextKey, contextValue } from "./index"
 
 // No-op action methods for test sources
 const noActions = {
@@ -99,12 +99,12 @@ function createWeatherSource(
 				{
 					id: `weather-${Date.now()}`,
 					type: "weather",
-					priority: 0.5,
 					timestamp: new Date(),
 					data: {
 						temperature: weather.temperature,
 						condition: weather.condition,
 					},
+					signals: { urgency: 0.5, timeRelevance: TimeRelevance.Ambient },
 				},
 			]
 		},
@@ -130,9 +130,9 @@ function createAlertSource(): FeedSource<AlertFeedItem> {
 					{
 						id: "alert-storm",
 						type: "alert",
-						priority: 1.0,
 						timestamp: new Date(),
 						data: { message: "Storm warning!" },
+						signals: { urgency: 1.0, timeRelevance: TimeRelevance.Imminent },
 					},
 				]
 			}
@@ -225,9 +225,6 @@ async function refreshGraph(graph: SourceGraph): Promise<{ context: Context; ite
 			items.push(...sourceItems)
 		}
 	}
-
-	// Sort by priority descending
-	items.sort((a, b) => b.priority - a.priority)
 
 	return { context, items }
 }
@@ -441,8 +438,12 @@ describe("FeedSource", () => {
 			const { items } = await refreshGraph(graph)
 
 			expect(items).toHaveLength(2)
-			expect(items[0]!.type).toBe("alert") // priority 1.0
-			expect(items[1]!.type).toBe("weather") // priority 0.5
+			// Items returned in topological order (weather before alert)
+			expect(items[0]!.type).toBe("weather")
+			expect(items[1]!.type).toBe("alert")
+			// Signals preserved for post-processors
+			expect(items[0]!.signals?.urgency).toBe(0.5)
+			expect(items[1]!.signals?.urgency).toBe(1.0)
 		})
 
 		test("source without location context returns empty items", async () => {

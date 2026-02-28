@@ -1,4 +1,6 @@
-import type { Context, DataSource } from "@aris/core"
+import type { Context, DataSource, FeedItemSignals } from "@aris/core"
+
+import { TimeRelevance } from "@aris/core"
 
 import {
 	WeatherFeedItemType,
@@ -105,7 +107,7 @@ export class WeatherKitDataSource implements DataSource<WeatherFeedItem, Weather
 	}
 }
 
-const BASE_PRIORITY = {
+const BASE_URGENCY = {
 	current: 0.5,
 	hourly: 0.3,
 	daily: 0.2,
@@ -134,17 +136,17 @@ const MODERATE_CONDITIONS = new Set<ConditionCode>([
 	ConditionCode.BlowingSnow,
 ])
 
-function adjustPriorityForCondition(basePriority: number, conditionCode: ConditionCode): number {
+function adjustUrgencyForCondition(baseUrgency: number, conditionCode: ConditionCode): number {
 	if (SEVERE_CONDITIONS.has(conditionCode)) {
-		return Math.min(1, basePriority + 0.3)
+		return Math.min(1, baseUrgency + 0.3)
 	}
 	if (MODERATE_CONDITIONS.has(conditionCode)) {
-		return Math.min(1, basePriority + 0.15)
+		return Math.min(1, baseUrgency + 0.15)
 	}
-	return basePriority
+	return baseUrgency
 }
 
-function adjustPriorityForAlertSeverity(severity: Severity): number {
+function adjustUrgencyForAlertSeverity(severity: Severity): number {
 	switch (severity) {
 		case Severity.Extreme:
 			return 1
@@ -153,7 +155,29 @@ function adjustPriorityForAlertSeverity(severity: Severity): number {
 		case Severity.Moderate:
 			return 0.75
 		case Severity.Minor:
-			return BASE_PRIORITY.alert
+			return BASE_URGENCY.alert
+	}
+}
+
+function timeRelevanceForCondition(conditionCode: ConditionCode): TimeRelevance {
+	if (SEVERE_CONDITIONS.has(conditionCode)) {
+		return TimeRelevance.Imminent
+	}
+	if (MODERATE_CONDITIONS.has(conditionCode)) {
+		return TimeRelevance.Upcoming
+	}
+	return TimeRelevance.Ambient
+}
+
+function timeRelevanceForAlertSeverity(severity: Severity): TimeRelevance {
+	switch (severity) {
+		case Severity.Extreme:
+		case Severity.Severe:
+			return TimeRelevance.Imminent
+		case Severity.Moderate:
+			return TimeRelevance.Upcoming
+		case Severity.Minor:
+			return TimeRelevance.Ambient
 	}
 }
 
@@ -197,12 +221,14 @@ function createCurrentWeatherFeedItem(
 	timestamp: Date,
 	units: Units,
 ): CurrentWeatherFeedItem {
-	const priority = adjustPriorityForCondition(BASE_PRIORITY.current, current.conditionCode)
+	const signals: FeedItemSignals = {
+		urgency: adjustUrgencyForCondition(BASE_URGENCY.current, current.conditionCode),
+		timeRelevance: timeRelevanceForCondition(current.conditionCode),
+	}
 
 	return {
 		id: `weather-current-${timestamp.getTime()}`,
 		type: WeatherFeedItemType.current,
-		priority,
 		timestamp,
 		data: {
 			conditionCode: current.conditionCode,
@@ -219,6 +245,7 @@ function createCurrentWeatherFeedItem(
 			windGust: convertSpeed(current.windGust, units),
 			windSpeed: convertSpeed(current.windSpeed, units),
 		},
+		signals,
 	}
 }
 
@@ -228,12 +255,14 @@ function createHourlyWeatherFeedItem(
 	timestamp: Date,
 	units: Units,
 ): HourlyWeatherFeedItem {
-	const priority = adjustPriorityForCondition(BASE_PRIORITY.hourly, hourly.conditionCode)
+	const signals: FeedItemSignals = {
+		urgency: adjustUrgencyForCondition(BASE_URGENCY.hourly, hourly.conditionCode),
+		timeRelevance: timeRelevanceForCondition(hourly.conditionCode),
+	}
 
 	return {
 		id: `weather-hourly-${timestamp.getTime()}-${index}`,
 		type: WeatherFeedItemType.hourly,
-		priority,
 		timestamp,
 		data: {
 			forecastTime: new Date(hourly.forecastStart),
@@ -250,6 +279,7 @@ function createHourlyWeatherFeedItem(
 			windGust: convertSpeed(hourly.windGust, units),
 			windSpeed: convertSpeed(hourly.windSpeed, units),
 		},
+		signals,
 	}
 }
 
@@ -259,12 +289,14 @@ function createDailyWeatherFeedItem(
 	timestamp: Date,
 	units: Units,
 ): DailyWeatherFeedItem {
-	const priority = adjustPriorityForCondition(BASE_PRIORITY.daily, daily.conditionCode)
+	const signals: FeedItemSignals = {
+		urgency: adjustUrgencyForCondition(BASE_URGENCY.daily, daily.conditionCode),
+		timeRelevance: timeRelevanceForCondition(daily.conditionCode),
+	}
 
 	return {
 		id: `weather-daily-${timestamp.getTime()}-${index}`,
 		type: WeatherFeedItemType.daily,
-		priority,
 		timestamp,
 		data: {
 			forecastDate: new Date(daily.forecastStart),
@@ -279,16 +311,19 @@ function createDailyWeatherFeedItem(
 			temperatureMax: convertTemperature(daily.temperatureMax, units),
 			temperatureMin: convertTemperature(daily.temperatureMin, units),
 		},
+		signals,
 	}
 }
 
 function createWeatherAlertFeedItem(alert: WeatherAlert, timestamp: Date): WeatherAlertFeedItem {
-	const priority = adjustPriorityForAlertSeverity(alert.severity)
+	const signals: FeedItemSignals = {
+		urgency: adjustUrgencyForAlertSeverity(alert.severity),
+		timeRelevance: timeRelevanceForAlertSeverity(alert.severity),
+	}
 
 	return {
 		id: `weather-alert-${alert.id}`,
 		type: WeatherFeedItemType.alert,
-		priority,
 		timestamp,
 		data: {
 			alertId: alert.id,
@@ -302,5 +337,6 @@ function createWeatherAlertFeedItem(alert: WeatherAlert, timestamp: Date): Weath
 			source: alert.source,
 			urgency: alert.urgency,
 		},
+		signals,
 	}
 }

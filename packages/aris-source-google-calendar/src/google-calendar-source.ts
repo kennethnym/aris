@@ -1,6 +1,6 @@
-import type { ActionDefinition, Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedItemSignals, FeedSource } from "@aris/core"
 
-import { UnknownActionError } from "@aris/core"
+import { TimeRelevance, UnknownActionError } from "@aris/core"
 
 import type {
 	ApiCalendarEvent,
@@ -35,10 +35,10 @@ import { DefaultGoogleCalendarClient } from "./google-calendar-api"
 
 const DEFAULT_LOOKAHEAD_HOURS = 24
 
-const PRIORITY_ONGOING = 1.0
-const PRIORITY_UPCOMING_MAX = 0.9
-const PRIORITY_UPCOMING_MIN = 0.3
-const PRIORITY_ALL_DAY = 0.4
+const URGENCY_ONGOING = 1.0
+const URGENCY_UPCOMING_MAX = 0.9
+const URGENCY_UPCOMING_MIN = 0.3
+const URGENCY_ALL_DAY = 0.4
 
 /**
  * A FeedSource that provides Google Calendar events and next-event context.
@@ -171,9 +171,13 @@ function parseEvent(event: ApiCalendarEvent, calendarId: string): CalendarEventD
 	}
 }
 
-function computePriority(event: CalendarEventData, nowMs: number, lookaheadMs: number): number {
+function computeSignals(
+	event: CalendarEventData,
+	nowMs: number,
+	lookaheadMs: number,
+): FeedItemSignals {
 	if (event.isAllDay) {
-		return PRIORITY_ALL_DAY
+		return { urgency: URGENCY_ALL_DAY, timeRelevance: TimeRelevance.Ambient }
 	}
 
 	const startMs = event.startTime.getTime()
@@ -181,17 +185,23 @@ function computePriority(event: CalendarEventData, nowMs: number, lookaheadMs: n
 
 	// Ongoing: start <= now < end
 	if (startMs <= nowMs && nowMs < endMs) {
-		return PRIORITY_ONGOING
+		return { urgency: URGENCY_ONGOING, timeRelevance: TimeRelevance.Imminent }
 	}
 
-	// Upcoming: linear decay from PRIORITY_UPCOMING_MAX to PRIORITY_UPCOMING_MIN
+	// Upcoming: linear decay from URGENCY_UPCOMING_MAX to URGENCY_UPCOMING_MIN
 	const msUntilStart = startMs - nowMs
 	if (msUntilStart <= 0) {
-		return PRIORITY_UPCOMING_MIN
+		return { urgency: URGENCY_UPCOMING_MIN, timeRelevance: TimeRelevance.Ambient }
 	}
 
 	const ratio = Math.min(msUntilStart / lookaheadMs, 1)
-	return PRIORITY_UPCOMING_MAX - ratio * (PRIORITY_UPCOMING_MAX - PRIORITY_UPCOMING_MIN)
+	const urgency = URGENCY_UPCOMING_MAX - ratio * (URGENCY_UPCOMING_MAX - URGENCY_UPCOMING_MIN)
+
+	// Within 30 minutes = imminent, otherwise upcoming
+	const timeRelevance =
+		msUntilStart <= 30 * 60 * 1000 ? TimeRelevance.Imminent : TimeRelevance.Upcoming
+
+	return { urgency, timeRelevance }
 }
 
 function createFeedItem(
@@ -199,14 +209,13 @@ function createFeedItem(
 	nowMs: number,
 	lookaheadMs: number,
 ): CalendarFeedItem {
-	const priority = computePriority(event, nowMs, lookaheadMs)
 	const itemType = event.isAllDay ? CalendarFeedItemType.allDay : CalendarFeedItemType.event
 
 	return {
 		id: `calendar-${event.calendarId}-${event.eventId}`,
 		type: itemType,
-		priority,
 		timestamp: new Date(nowMs),
 		data: event,
+		signals: computeSignals(event, nowMs, lookaheadMs),
 	}
 }

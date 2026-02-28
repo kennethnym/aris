@@ -190,21 +190,22 @@ describe("query() with mocked client", () => {
 		expect(imperialTemp).toBeCloseTo(expectedImperial, 2)
 	})
 
-	test("assigns priority based on weather conditions", async () => {
+	test("assigns signals based on weather conditions", async () => {
 		const dataSource = new WeatherKitDataSource({ client: mockClient })
 		const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 		const items = await dataSource.query(context)
 
 		for (const item of items) {
-			expect(item.priority).toBeGreaterThanOrEqual(0)
-			expect(item.priority).toBeLessThanOrEqual(1)
+			expect(item.signals).toBeDefined()
+			expect(item.signals!.urgency).toBeGreaterThanOrEqual(0)
+			expect(item.signals!.urgency).toBeLessThanOrEqual(1)
+			expect(item.signals!.timeRelevance).toBeDefined()
 		}
 
 		const currentItem = items.find((i) => i.type === WeatherFeedItemType.current)
 		expect(currentItem).toBeDefined()
-		// Base priority for current is 0.5, may be adjusted for conditions
-		expect(currentItem!.priority).toBeGreaterThanOrEqual(0.5)
+		expect(currentItem!.signals!.urgency).toBeGreaterThanOrEqual(0.5)
 	})
 
 	test("generates unique IDs for each item", async () => {

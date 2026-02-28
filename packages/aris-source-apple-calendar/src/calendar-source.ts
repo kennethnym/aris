@@ -1,6 +1,6 @@
-import type { ActionDefinition, Context, FeedSource } from "@aris/core"
-import { UnknownActionError } from "@aris/core"
+import type { ActionDefinition, Context, FeedItemSignals, FeedSource } from "@aris/core"
 
+import { TimeRelevance, UnknownActionError } from "@aris/core"
 import { DAVClient } from "tsdav"
 
 import type {
@@ -202,9 +202,9 @@ function computeTimeRange(now: Date, lookAheadDays: number): { start: Date; end:
 	return { start, end }
 }
 
-export function computePriority(event: CalendarEventData, now: Date): number {
+export function computeSignals(event: CalendarEventData, now: Date): FeedItemSignals {
 	if (event.isAllDay) {
-		return 0.3
+		return { urgency: 0.3, timeRelevance: TimeRelevance.Ambient }
 	}
 
 	const msUntilStart = event.startDate.getTime() - now.getTime()
@@ -212,40 +212,41 @@ export function computePriority(event: CalendarEventData, now: Date): number {
 	// Event already started
 	if (msUntilStart < 0) {
 		const isInProgress = now.getTime() < event.endDate.getTime()
-		// Currently happening events are high priority; fully past events are low
-		return isInProgress ? 0.8 : 0.2
+		return isInProgress
+			? { urgency: 0.8, timeRelevance: TimeRelevance.Imminent }
+			: { urgency: 0.2, timeRelevance: TimeRelevance.Ambient }
 	}
 
 	// Starting within 30 minutes
 	if (msUntilStart <= 30 * 60 * 1000) {
-		return 0.9
+		return { urgency: 0.9, timeRelevance: TimeRelevance.Imminent }
 	}
 
 	// Starting within 2 hours
 	if (msUntilStart <= 2 * 60 * 60 * 1000) {
-		return 0.7
+		return { urgency: 0.7, timeRelevance: TimeRelevance.Upcoming }
 	}
 
-	// Later today (within 24 hours from start of day)
+	// Later today
 	const startOfDay = new Date(now)
 	startOfDay.setUTCHours(0, 0, 0, 0)
 	const endOfDay = new Date(startOfDay)
 	endOfDay.setUTCDate(endOfDay.getUTCDate() + 1)
 
 	if (event.startDate.getTime() < endOfDay.getTime()) {
-		return 0.5
+		return { urgency: 0.5, timeRelevance: TimeRelevance.Upcoming }
 	}
 
 	// Future days
-	return 0.2
+	return { urgency: 0.2, timeRelevance: TimeRelevance.Ambient }
 }
 
 function createFeedItem(event: CalendarEventData, now: Date): CalendarFeedItem {
 	return {
 		id: `calendar-event-${event.uid}${event.recurrenceId ? `-${event.recurrenceId}` : ""}`,
 		type: "calendar-event",
-		priority: computePriority(event, now),
 		timestamp: now,
 		data: event,
+		signals: computeSignals(event, now),
 	}
 }

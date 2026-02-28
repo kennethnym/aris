@@ -145,20 +145,22 @@ describe("WeatherSource", () => {
 			}
 		})
 
-		test("assigns priority based on weather conditions", async () => {
+		test("assigns signals based on weather conditions", async () => {
 			const source = new WeatherSource({ client: mockClient })
 			const context = createMockContext({ lat: 37.7749, lng: -122.4194 })
 
 			const items = await source.fetchItems(context)
 
 			for (const item of items) {
-				expect(item.priority).toBeGreaterThanOrEqual(0)
-				expect(item.priority).toBeLessThanOrEqual(1)
+				expect(item.signals).toBeDefined()
+				expect(item.signals!.urgency).toBeGreaterThanOrEqual(0)
+				expect(item.signals!.urgency).toBeLessThanOrEqual(1)
+				expect(item.signals!.timeRelevance).toBeDefined()
 			}
 
 			const currentItem = items.find((i) => i.type === WeatherFeedItemType.current)
 			expect(currentItem).toBeDefined()
-			expect(currentItem!.priority).toBeGreaterThanOrEqual(0.5)
+			expect(currentItem!.signals!.urgency).toBeGreaterThanOrEqual(0.5)
 		})
 
 		test("generates unique IDs for each item", async () => {

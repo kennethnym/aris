@@ -150,9 +150,6 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 			}
 		}
 
-		// Sort by priority descending
-		items.sort((a, b) => b.priority - a.priority)
-
 		this.context = context
 
 		const result: FeedResult<TItems> = { context, items: items as TItems[], errors }
@@ -313,8 +310,6 @@ export class FeedEngine<TItems extends FeedItem = FeedItem> {
 				}
 			}
 		}
-
-		items.sort((a, b) => b.priority - a.priority)
 
 		const result: FeedResult<TItems> = {
 			context: this.context,

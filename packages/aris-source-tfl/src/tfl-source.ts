@@ -1,6 +1,6 @@
-import type { ActionDefinition, Context, FeedSource } from "@aris/core"
+import type { ActionDefinition, Context, FeedItemSignals, FeedSource } from "@aris/core"
 
-import { UnknownActionError, contextValue } from "@aris/core"
+import { TimeRelevance, UnknownActionError, contextValue } from "@aris/core"
 import { LocationKey } from "@aris/source-location"
 import { type } from "arktype"
 
@@ -18,10 +18,16 @@ import { TflApi, lineId } from "./tfl-api.ts"
 
 const setLinesInput = lineId.array()
 
-const SEVERITY_PRIORITY: Record<TflAlertSeverity, number> = {
+const SEVERITY_URGENCY: Record<TflAlertSeverity, number> = {
 	closure: 1.0,
 	"major-delays": 0.8,
 	"minor-delays": 0.6,
+}
+
+const SEVERITY_TIME_RELEVANCE: Record<TflAlertSeverity, TimeRelevance> = {
+	closure: TimeRelevance.Imminent,
+	"major-delays": TimeRelevance.Imminent,
+	"minor-delays": TimeRelevance.Upcoming,
 }
 
 /**
@@ -137,19 +143,26 @@ export class TflSource implements FeedSource<TflAlertFeedItem> {
 				closestStationDistance,
 			}
 
+			const signals: FeedItemSignals = {
+				urgency: SEVERITY_URGENCY[status.severity],
+				timeRelevance: SEVERITY_TIME_RELEVANCE[status.severity],
+			}
+
 			return {
 				id: `tfl-alert-${status.lineId}-${status.severity}`,
 				type: "tfl-alert",
-				priority: SEVERITY_PRIORITY[status.severity],
 				timestamp: context.time,
 				data,
+				signals,
 			}
 		})
 
-		// Sort by severity (desc), then by proximity (asc) if location available
+		// Sort by urgency (desc), then by proximity (asc) if location available
 		items.sort((a, b) => {
-			if (b.priority !== a.priority) {
-				return b.priority - a.priority
+			const aUrgency = a.signals?.urgency ?? 0
+			const bUrgency = b.signals?.urgency ?? 0
+			if (bUrgency !== aUrgency) {
+				return bUrgency - aUrgency
 			}
 			if (a.data.closestStationDistance !== null && b.data.closestStationDistance !== null) {
 				return a.data.closestStationDistance - b.data.closestStationDistance

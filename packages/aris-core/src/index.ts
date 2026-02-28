@@ -7,7 +7,8 @@ export type { ActionDefinition } from "./action"
 export { UnknownActionError } from "./action"
 
 // Feed
-export type { FeedItem } from "./feed"
+export type { FeedItem, FeedItemSignals } from "./feed"
+export { TimeRelevance } from "./feed"
 
 // Feed Source
 export type { FeedSource } from "./feed-source"
